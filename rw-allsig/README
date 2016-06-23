@@ -1,0 +1,5 @@
+This benchmark uses all signaled operations to maintain an exact number of
+outstanding operations. For simplicity, we don't use postlist.
+
+The server sends a batch of <window> signaled WQE on a queue pair in quick
+succession, and then polls for completion of each WQE.

@@ -1,0 +1,6 @@
+Library requirements:
+====================
+	libmemcached
+	libmemcached-tools
+	libnuma-dev	(for mbind)
+	

@@ -1,0 +1,10 @@
+This program measures the rate at which a single CPU core can atomically modify
+cachelines in L3. This information may be useful in reasoning about the
+maximum atomics rate of an HCA that uses PCIe atomics to implement RDMA atomics.
+
+A ballpark rate of a CPU core's L3 atomic rate is 50 M/s. These atomics are
+serialized by the core (by making successive atomic operations dependent)
+on each other.
+
+The ballpark rate of a Connect-IB's L3 atomic rate is 42 M/s. This suggests
+that the PCIe controller on the CPU may be serializing all atomic operations.
