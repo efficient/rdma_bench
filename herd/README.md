@@ -19,7 +19,7 @@ These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`
   * `UNSIG_BATCH`: One response in every `UNSIG_BATCH` responses is signaled
 
 ## Running the benchmark
-1. At the server machine: `./run-server.sh`
+1. At the server machine: `./run-servers.sh`
 2. At machine `i` of `NUM_WORKERS / num_threads` client machines:
 `./run-machine.sh i`
 

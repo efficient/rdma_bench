@@ -14,7 +14,7 @@ These parameters are defined in `main.c`, `run-servers.sh`, and `run-machine.sh`
   * `UNSIG_BATCH`: One `post_send()` per `UNSIG_BATCH` reads/writes is signaled
 
 ## Running the benchmark
-1. At the server machine: `./run-server.sh`
+1. At the server machine: `./run-servers.sh`
 2. At client machine `i` of `num_server_threads / num_threads` client machines:
    `./run-machine.sh i`
 

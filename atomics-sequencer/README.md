@@ -25,7 +25,7 @@ These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`
   * `HRD_CONNECT_IB_ATOMICS`: Set to 1 if using a Connect-IB NIC
 
 ## Running the benchmark
-1. At the server machine: `./run-server.sh`
+1. At the server machine: `./run-servers.sh`
 2. At machine `i` of `NUM_CLIENTS / num_threads` client machines:
    `./run-machine.sh i`
 

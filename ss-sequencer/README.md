@@ -18,7 +18,7 @@ These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`
 
 ## Running the benchmark
 
-1. At the server machine: `./run-server.sh`
+1. At the server machine: `./run-servers.sh`
 2. At client machine `i`: `./run-machine.sh i`
   * There can be up to `MAX_NUM_CLIENTS / num_threads` client machines
 

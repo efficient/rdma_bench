@@ -13,7 +13,10 @@ A framework to understand RDMA performance. This is the source code for our
  * libnuma-dev (numactl-devel on CentOS)
 
 ## Required settings
-All benchmarks require one server machine and separate client machines.
+All benchmarks require one server machine and multiple client machines.
+ * The number of client machines required is described in each benchmark's README
+   file. The server will wait for all clients to launch, so the benchmarks won't
+   make progress until the correct number of clients are launched.
  * Modify `HRD_REGISTRY_IP` in `run-servers.sh` and `run-machines.sh` to the IP
    address of the server machine. This machine runs a memcached instance that is
    used as a queue pair registry.
@@ -113,7 +116,7 @@ nothing will have been posted at this point, so polling will get stuck.
 
  * **Queue capacity check:** `HRD_Q_DEPTH >= 2 * UNSIG_BATCH`. With the above
 scheme, up to `2 * UNSIG_BATCH - 1` work requests can be un-ACKed by the QP.
-With a QP of size `N`, `N - 1` work requestss are allowed to be un-ACKed by the
+With a QP of size `N`, `N - 1` work requests are allowed to be un-ACKed by the
 InfiniBand/RoCE specification.
 
 ## Authors

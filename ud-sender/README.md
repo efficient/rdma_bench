@@ -14,7 +14,7 @@ These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`
   * `UNSIG_BATCH`: One SEND in every `UNSIG_BATCH` responses is signaled
 
 ## Running the benchmark
-1. At the server machine: `./run-server.sh`
+1. At the server machine: `./run-servers.sh`
 2. Total number of client machines needed is `C = NUM_CLIENTS / num_threads`
    in single-port mode, and `C = 2 * NUM_CLIENTS / num_threads` in dual-port
    mode.
