@@ -13,7 +13,8 @@ A framework to understand RDMA performance. This is the source code for our
  * libnuma-dev (numactl-devel on CentOS)
 
 ## Required settings
-All benchmarks require one server machine and multiple client machines.
+All benchmarks require one server machine and multiple client machines. Every
+benchmark is contained in one directory.
  * The number of client machines required is described in each benchmark's README
    file. The server will wait for all clients to launch, so the benchmarks won't
    make progress until the correct number of clients are launched.
@@ -41,10 +42,10 @@ a few other benchmarks as well.
 | `ws-sequencer` | Sequencer using HERD RPCs (UC WRITE requests, UD SEND responses). |
 | `ss-sequencer` | Sequencer using header-only datagram RPCs (i.e., UD SENDs only). |
 | | |
-| `rw-tput-sender` | Throughput of outbound READs and WRITEs. |
-| `rw-tput-receiver` | Throughput of inbound READs and WRITEs. |
-| `ud-sender` | Throughput of outbound SENDs. |
-| `ud-receiver` | Throughput of inbound SENDs (i.e., RECV throughput). |
+| `rw-tput-sender` | Microbenchmark to measure throughput of outbound READs and WRITEs. |
+| `rw-tput-receiver` | Microbenchmark to measure throughput of inbound READs and WRITEs. |
+| `ud-sender` | Microbenchmark to measure throughput of outbound SENDs. |
+| `ud-receiver` | Microbenchmark to measure throughput of inbound SENDs. |
 | | |
 | `rw-allsig` | WQE cache misses for outbound READs and WRITEs. |
 
@@ -119,7 +120,7 @@ scheme, up to `2 * UNSIG_BATCH - 1` work requests can be un-ACKed by the QP.
 With a QP of size `N`, `N - 1` work requests are allowed to be un-ACKed by the
 InfiniBand/RoCE specification.
 
-## Authors
+## Contact
 Anuj Kalia (akalia@cs.cmu.edu)
 
 ## License
