@@ -17,7 +17,3 @@ These parameters are defined in `main.c`, `run-servers.sh`, and `run-machine.sh`
 1. At the server machine: `./run-servers.sh`
 2. At client machine `i` of `NUM_SERVER_THREADS / num_threads` client machines:
    `./run-machine.sh i`
-
-## Connection logic
- * Each client thread establishes a connections with one server thread. This
-   is done to keep the communication fan-out at the server small.
