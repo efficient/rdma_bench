@@ -1,0 +1,17 @@
+#
+# https://google-styleguide.googlecode.com/svn/trunk/cppguide.html
+#
+# Exceptions:
+#  * Allow the Interface postfix for a class if the class does not define any methods or member variables.
+#  * Allow rvalue references to express universal references.
+#  * Use #pragma once in addition to the include guards.
+#  * Allow using variable-length arrays if each is guaranteed <= 1 KiB.
+#  * Do not reflow comments; do it manually.
+#
+
+BasedOnStyle: Google
+
+Language: Cpp
+DerivePointerAlignment: false
+PointerAlignment: Left
+PointerBindsToType: true
