@@ -5,13 +5,13 @@ function blue() {
 	echo "${es}$1${ee}"
 }
 
-export HRD_REGISTRY_IP="10.113.1.47"
+export HRD_REGISTRY_IP="128.110.96.101"
 export MLX5_SINGLE_THREADED=1
 
 blue "Removing hugepages"
 shm-rm.sh 1>/dev/null 2>/dev/null
 
-num_server_threads=32
+num_server_threads=16
 : ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
 
 blue "Reset server QP registry"
@@ -24,6 +24,6 @@ blue "Starting $num_server_threads server threads"
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
 	numactl --cpunodebind=0 --membind=0 ./main \
 	--num-threads $num_server_threads \
-	--dual-port 1 \
+	--dual-port 0 \
 	--use-uc 0 \
 	--is-client 0 &

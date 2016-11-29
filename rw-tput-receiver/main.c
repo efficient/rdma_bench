@@ -10,11 +10,13 @@
 
 struct thread_params {
 	int id;
+  int num_threads; /* Number of client/server threads on this machine */
 	int dual_port;
 	int use_uc;
 	int size;
 	int postlist;
 	int do_read;
+  double *tput_arr;
 };
 
 inline uint32_t fastrand(uint64_t *seed)
@@ -72,8 +74,9 @@ void *run_client(void *arg)
 {
 	//uint64_t seed = 0xdeadbeef;
 	struct thread_params params = *(struct thread_params *) arg;
-	int clt_gid = params.id;	/* Global ID of this server thread */
+	int clt_gid = params.id;	/* Global ID of this client thread */
 	int srv_gid = clt_gid;	/* One-to-one connections */
+  int clt_lid = params.id % params.num_threads; /* Local ID of this client */
 	int ib_port_index = params.dual_port == 0 ? 0 : srv_gid % 2;
 
 	struct hrd_ctrl_blk *cb = hrd_ctrl_blk_init(clt_gid,	/* local_hid */
@@ -134,8 +137,21 @@ void *run_client(void *arg)
 			clock_gettime(CLOCK_REALTIME, &end);
 			double seconds = (end.tv_sec - start.tv_sec) + 
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
-			printf("main: Client %d: %.2f Mops\n", clt_gid, M_1 / seconds);
+      double tput = M_1 / seconds;
+			printf("main: Client %d: %.2f Mops\n", clt_gid, tput);
 			rolling_iter = 0;
+
+      /* Per-machine stats */
+      params.tput_arr[clt_lid] = tput;
+      if (clt_lid == 0) {
+        double machine_tput = 0;
+        int i;
+        for (i = 0; i < params.num_threads; i++) {
+          machine_tput += params.tput_arr[i];
+        }
+
+        hrd_red_printf("main: Machine: %.2f Mops\n", machine_tput);
+      }
 		
 			clock_gettime(CLOCK_REALTIME, &start);
 		}
@@ -260,19 +276,23 @@ int main(int argc, char *argv[])
 	printf("main: Using %d threads\n", num_threads);
 	param_arr = malloc(num_threads * sizeof(struct thread_params));
 	thread_arr = malloc(num_threads * sizeof(pthread_t));
+  double *tput_arr = malloc(num_threads * sizeof(double)); /* For clients */
 
 	for(i = 0; i < num_threads; i++) {
 		if(is_client) {
 			param_arr[i].id = (machine_id * num_threads) + i;
+      param_arr[i].num_threads = num_threads;
 			param_arr[i].dual_port = dual_port;
 			param_arr[i].use_uc = use_uc;
 			param_arr[i].size = size;
 			param_arr[i].do_read = do_read;
 			param_arr[i].postlist = postlist;
+      param_arr[i].tput_arr = tput_arr;
 
 			pthread_create(&thread_arr[i], NULL, run_client, &param_arr[i]);
 		} else {
 			param_arr[i].id = i;
+      param_arr[i].num_threads = num_threads;
 			param_arr[i].dual_port = dual_port;
 			param_arr[i].use_uc = use_uc;
 

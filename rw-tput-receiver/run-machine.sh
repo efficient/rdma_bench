@@ -11,24 +11,24 @@ if [ "$#" -ne 1 ]; then
 	exit
 fi
 
-export HRD_REGISTRY_IP="10.113.1.47"
+export HRD_REGISTRY_IP="128.110.96.101"
 export MLX5_SINGLE_THREADED=1
 
 blue "Removing hugepages"
 shm-rm.sh 1>/dev/null 2>/dev/null
 
-num_threads=8			# Threads per client machine
+num_threads=4			# Threads per client machine
 : ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
 
 blue "Running $num_threads client threads"
 
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
+	numactl --physcpubind=0,1,2,3,4,5,6,7 --membind=0 ./main \
 	--num-threads $num_threads \
-	--dual-port 1 \
+	--dual-port 0 \
 	--use-uc 0 \
 	--is-client 1 \
 	--machine-id $1 \
 	--size 4 \
-	--postlist 16 \
+	--postlist 1 \
 	--do-read 1
