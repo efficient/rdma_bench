@@ -65,7 +65,7 @@ void *run_server(void *arg)
 			double seconds = (end.tv_sec - start.tv_sec) + 
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
 			params.tput[srv_gid] = M_4 / seconds;
-			printf("main: Server %d: %.2f Mops. Average postlist = %.2f\n",
+			printf("main: Server %d: %.2f IOPS. Average postlist = %.2f\n",
 				srv_gid, params.tput[srv_gid],
 				(double) nb_tx_tot / nb_post_send);
 

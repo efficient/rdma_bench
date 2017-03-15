@@ -113,7 +113,7 @@ void *run_worker(void *arg)
 			clock_gettime(CLOCK_REALTIME, &end);
 			double seconds = (end.tv_sec - start.tv_sec) + 
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
-			printf("main: Worker %d: %.2f Mops. Avg per-port postlist = %.2f\n",
+			printf("main: Worker %d: %.2f IOPS. Avg per-port postlist = %.2f\n",
 				wrkr_lid, M_4 / seconds, (double) nb_tx_tot / nb_post_send);
 
 			rolling_iter = 0;

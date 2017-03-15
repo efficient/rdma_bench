@@ -128,7 +128,7 @@ void *run_worker(void *arg)
 			clock_gettime(CLOCK_REALTIME, &end);
 			double seconds = (end.tv_sec - start.tv_sec) + 
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
-			printf("main: Worker %d: %.2f Mops. Avg per-port postlist = %.2f. "
+			printf("main: Worker %d: %.2f IOPS. Avg per-port postlist = %.2f. "
 				"HERD lookup fail rate = %.4f\n",
 				wrkr_lid, M_4 / seconds, (double) nb_tx_tot / nb_post_send,
 				(double) kv.num_get_fail / kv.num_get_op);

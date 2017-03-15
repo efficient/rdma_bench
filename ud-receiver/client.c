@@ -75,7 +75,7 @@ void *run_client(void *arg)
 			clock_gettime(CLOCK_REALTIME, &end);
 			double seconds = (end.tv_sec - start.tv_sec) + 
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
-			printf("main: Client %d: %.2f Mops\n",
+			printf("main: Client %d: %.2f IOPS\n",
 				clt_gid, rolling_iter / seconds);
 			rolling_iter = 0;
 		

@@ -56,7 +56,7 @@ void *run_server(void *arg)
 			clock_gettime(CLOCK_REALTIME, &end);
 			double seconds = (end.tv_sec - start.tv_sec) + 
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
-			printf("main: Server %d: %.2f Mops. \n",
+			printf("main: Server %d: %.2f IOPS. \n",
 				srv_gid, rolling_iter / seconds);
 
 			params.tput[srv_gid] = rolling_iter / seconds;
@@ -65,7 +65,7 @@ void *run_server(void *arg)
 				for(i = 0; i < NUM_SERVER_THREADS; i++) {
 					total_tput += params.tput[i];
 				}
-				hrd_red_printf("main: Total tput %.2f Mops.\n", total_tput);
+				hrd_red_printf("main: Total tput %.2f IOPS.\n", total_tput);
 			}
 			
 			rolling_iter = 0;

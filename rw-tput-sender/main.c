@@ -123,7 +123,7 @@ void *run_server(void *arg)
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
 
 			tput[srv_gid] = M_8 / seconds;
-			printf("main: Server %d: %.2f Mops\n", srv_gid, M_8 / seconds);
+			printf("main: Server %d: %.2f IOPS\n", srv_gid, M_8 / seconds);
 
 			/* Collecting stats at every server can reduce tput by ~ 10% */
 			if(srv_gid == 0 && rand() % 5 == 0) {

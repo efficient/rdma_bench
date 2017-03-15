@@ -82,14 +82,14 @@ void *run_server(void *arg)
 			double seconds = (end.tv_sec - start.tv_sec) + 
 				(double) (end.tv_nsec - start.tv_nsec) / 1000000000;
 			double my_tput = M_4 / seconds;
-			printf("main: Server %d: %.2f Mops. \n", srv_gid, my_tput);
+			printf("main: Server %d: %.2f IOPS. \n", srv_gid, my_tput);
 			params.tput[srv_gid] = my_tput;
 			if(srv_gid == 0) {
 				double total_tput = 0;
 				for(i = 0; i < params.num_threads; i++) {
 					total_tput += params.tput[i];
 				}
-				hrd_red_printf("main: Total tput = %.2f Mops.\n", total_tput);
+				hrd_red_printf("main: Total tput = %.2f IOPS.\n", total_tput);
 			}
 
 			rolling_iter = 0;

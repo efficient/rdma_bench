@@ -137,7 +137,7 @@ void* run_client(void* arg) {
       double seconds = (end.tv_sec - start.tv_sec) +
                        (double)(end.tv_nsec - start.tv_nsec) / 1000000000;
       double tput = M_1 / seconds;
-      printf("main: Client %d: %.2f Mops\n", clt_gid, tput);
+      printf("main: Client %d: %.2f IOPS\n", clt_gid, tput);
       rolling_iter = 0;
 
       /* Per-machine stats */
@@ -149,7 +149,7 @@ void* run_client(void* arg) {
           machine_tput += params.tput_arr[i];
         }
 
-        hrd_red_printf("main: Machine: %.2f Mops\n", machine_tput);
+        hrd_red_printf("main: Machine: %.2f IOPS\n", machine_tput);
       }
 
       clock_gettime(CLOCK_REALTIME, &start);
