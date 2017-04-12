@@ -7,7 +7,7 @@ cache line.
 These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`.
 
 1. Client-server configuration
-  * `NUM_SERVER_THREADS`: Number of workers threads at the server machine
+  * `NUM_SERVER_THREADS`: Number of worker threads at the server machine
   * `MAX_NUM_CLIENTS`: Maximum number of client threads in the cluster
   * `num_threads`: Number of client threads at each client machine
 2. RDMA optimizations

@@ -5,7 +5,7 @@ An improved implementation of the HERD key-value store.
 These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`.
 
 1. Client-server configuration
-  * `NUM_WORKERS`: Number of workers threads at the server machine
+  * `NUM_WORKERS`: Number of worker threads at the server machine
   * `NUM_CLIENTS`: Total number of client threads used
   * `num_threads`: Number of client threads at each client machine
 2. Key-value store configuration

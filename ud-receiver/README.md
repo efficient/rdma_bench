@@ -5,7 +5,7 @@ A benchmark to measure throughput of UD RECVs (or inbound SENDs)
 These parameters are defined in `main.c`, `run-servers.sh`, and `run-machine.sh`.
 
 1. Client-server configuration
-  * `NUM_SERVER_THREADS`: Number of workers threads at the server machine
+  * `NUM_SERVER_THREADS`: Number of worker threads at the server machine
   * `num_threads`: Number of client threads at each client machine
 2. RDMA optimizations
   * `postlist`: Maximim number of completions polled by a server thread in one

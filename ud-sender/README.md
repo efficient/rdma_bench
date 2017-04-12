@@ -5,7 +5,7 @@ A benchmark to measure throughput of outbound UD SENDs.
 These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`.
 
 1. Client-server configuration
-  * `num_server_threads`: Number of workers threads at the server machine
+  * `num_server_threads`: Number of worker threads at the server machine
   * `NUM_CLIENTS`: Total number of client threads used
   * `num_threads`: Number of client threads at each client machine
 2. RDMA optimizations

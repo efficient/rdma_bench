@@ -5,7 +5,7 @@ A benchmark to measure throughput of outbound RDMA reads or writes.
 These parameters are defined in `main.c`, `run-servers.sh`, and `run-machine.sh`.
 
 1. Client-server configuration
-  * `num_server_threads`: Number of workers threads at the server machine
+  * `num_server_threads`: Number of worker threads at the server machine
   * `num_threads`: Number of client threads at each client machine
 2. RDMA optimizations
   * `postlist`: Number of SENDs issued by a server using one Doorbell
