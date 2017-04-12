@@ -37,14 +37,16 @@ using its control block indexed `clt_i % num_server_ports`.
    each instance should only insert keys that belong to its partition. Doing so
    should not affect performance, however.
 
-## 2dc97ff9e4aab4a5a0634c357d6946f484ed218d on E5-2683-v3:
+## Performance on E5-2683-v3:
+ * Commit `2dc97ff9e4aab4a5a0634c357d6946f484ed218d`
  * 5% UPDATEs
+ * All numbers are million operations/sec
 ```
-Cores		Batched		Non-batched
-1 			12.3		6.69
-2 			23.2		12.68
-4 			40.4		24.2
-8 			71.2		44
-12 			98.3		63.6			# Average batch = 14.14 packets
-14			93.8		72.8			# Average batch = 8.9 packets
+Cores  Batched  Non-batched
+1      12.3		   6.69
+2      23.2		   12.68
+4      40.4     24.2
+8      71.2     44
+12     98.3     63.6			# Average batch = 14.14 packets
+14     93.8     72.8			# Average batch = 8.9 packets
 ```
