@@ -3,12 +3,11 @@ A framework to understand RDMA performance. This is the source code for our
 [USENIX ATC paper](http://www.cs.cmu.edu/~akalia/doc/atc16/rdma_bench_atc.pdf).
 
 ## Required hardware and software
- * InfiniBand HCAs
-    * RoCE HCAs have not been tested, but should work with minor modifications.
-      See `is_roce()` usage in [HERD](https://github.com/efficient/HERD) for
-      details.
- * Ubuntu 12.04+
- * Mellanox OFED 2.4+
+ * InfiniBand HCAs. RoCE HCAs have not been tested, but should work with minor
+   modifications. See `is_roce()` usage in [HERD](https://github.com/efficient/HERD)
+   for details.
+ * Ubuntu 12.04+ with Mellanox OFED 2.4+. Some benchmarks have been tested with
+   CentOS 7 with OpenFabrics OFED.
  * memcached, libmemcached-dev, libmemcached-tools
  * libnuma-dev (numactl-devel on CentOS)
 
