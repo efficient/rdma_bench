@@ -22,7 +22,8 @@ These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`
   * `EMULATE_DRTM`: Configure the benchmark to emulate DrTM's key-value store
   * `UPDATEs`: Percentage of update operations for DrTM-KV
 4. RDMA configuration
-  * `HRD_CONNECT_IB_ATOMICS`: Set to 1 if using a Connect-IB NIC
+  * `HRD_CONNECT_IB_ATOMICS`: **Set to 1 if using an mlx5-based NIC (Connect-IB
+    or newer)**
 
 ## Running the benchmark
 1. At the server machine: `./run-servers.sh`
