@@ -1,6 +1,13 @@
 # HERD
 An improved implementation of the HERD key-value store.
 
+## Running the benchmark
+Refer to the top-level [README](https://github.com/efficient/rdma_bench/blob/master/README.md) for general requirements and instructions to run `rdma_bench` benchmarks. Quick start:
+
+1. At the server machine: `./run-servers.sh`
+2. At machine `i` of `NUM_WORKERS / num_threads` client machines:
+`./run-machine.sh i`
+
 ## Important parameters
 These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`.
 
@@ -18,10 +25,13 @@ These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`
   * `NUM_UD_QPS`: Number of UD QPs used by each server thread for responses
   * `UNSIG_BATCH`: One response in every `UNSIG_BATCH` responses is signaled
 
-## Running the benchmark
-1. At the server machine: `./run-servers.sh`
-2. At machine `i` of `NUM_WORKERS / num_threads` client machines:
-`./run-machine.sh i`
+For example, to run 16 server threads on a server with IP address `server_ip`, and 20 client threads spread over 2 client machines, use the following settings:
+  * Set `HRD_REGISTRY_IP = server_ip` in `run-servers.sh`
+  * Set `HRD_REGISTRY_IP = server_ip` in each `run-machine.sh` file
+  * `NUM_WORKERS = 16`, `NUM_CLIENTS = 30`, `num_threads = 10`
+  * `./run-servers.sh` on the server machine
+  * `./run-machine.sh 0` on client machine 0
+  * `./run-machine.sh 1` on client machine 1
 
 ## Client connection logic
 The technique discussed in the main README is used: Each client thread uses a
