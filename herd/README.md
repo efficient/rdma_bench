@@ -25,7 +25,7 @@ These parameters are defined in `main.h`, `run-servers.sh`, and `run-machine.sh`
   * `NUM_UD_QPS`: Number of UD QPs used by each server thread for responses
   * `UNSIG_BATCH`: One response in every `UNSIG_BATCH` responses is signaled
 
-For example, to run 16 server threads on a server with IP address `server_ip`, and 20 client threads spread over 2 client machines, use the following settings:
+For example, to run 16 worker threads on a server with IP address `server_ip`, and 20 client threads spread over 2 client machines, use the following settings:
   * Set `HRD_REGISTRY_IP = server_ip` in `run-servers.sh`
   * Set `HRD_REGISTRY_IP = server_ip` in each `run-machine.sh` file
   * `NUM_WORKERS = 16`, `NUM_CLIENTS = 30`, `num_threads = 10`
