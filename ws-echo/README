@@ -1,0 +1,18 @@
+Snapshots:
+
+011b7760e019fd4535082ef05f3ac24e77e2827a: 102 Mpps on NetApp E5-2630 v2 with 8
+threads on 6 cores.
+
+1d364ad7ec1c7acdcebde9e2bffd49a18256e7c0: 96 Mpps on NetApp E5-2630 v2 with 4
+threads on 6 cores (provided each worker gets an average postlist of ~32 pkts).
+
+d6a28fb18c7bee2ab781dae470e717afdce2fc2f: 97 Mpps on Netapp E5-2670 with 5
+threads.
+
+Notes:
+
+0. Each worker handles both ports. Each client can send requests to all workers.
+
+1. Client i connects to master i. They run on the same port (port i % 2) if
+dualport is used.
+

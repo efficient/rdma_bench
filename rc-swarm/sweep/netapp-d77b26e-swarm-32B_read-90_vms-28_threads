@@ -1,0 +1,113 @@
+Experiment settings:
+1. Operation type = 32-byte read
+2. NetApp 2683-v3
+3. Threads = 28, on 28 cores on two sockets
+
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 4
+Machine 0 average: 19.97 M/s
+Machine 1 average: 20.12 M/s
+Machine 2 average: 19.86 M/s
+Machine 3 average: 20.00 M/s
+Machine 4 average: 20.37 M/s
+Machine 5 average: 20.18 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 8
+Machine 0 average: 20.20 M/s
+Machine 1 average: 20.37 M/s
+Machine 2 average: 19.94 M/s
+Machine 3 average: 20.20 M/s
+Machine 4 average: 20.19 M/s
+Machine 5 average: 19.78 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 32
+Machine 0 average: 20.59 M/s
+Machine 1 average: 20.70 M/s
+Machine 2 average: 20.77 M/s
+Machine 3 average: 20.71 M/s
+Machine 4 average: 20.88 M/s
+Machine 5 average: 20.33 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 64
+Machine 0 average: 20.69 M/s
+Machine 1 average: 21.11 M/s
+Machine 2 average: 21.09 M/s
+Machine 3 average: 21.00 M/s
+Machine 4 average: 20.59 M/s
+Machine 5 average: 21.00 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 4
+Machine 0 average: 17.28 M/s
+Machine 1 average: 17.25 M/s
+Machine 2 average: 17.08 M/s
+Machine 3 average: 17.12 M/s
+Machine 4 average: 16.88 M/s
+Machine 5 average: 17.60 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 8
+Machine 0 average: 17.58 M/s
+Machine 1 average: 17.58 M/s
+Machine 2 average: 17.12 M/s
+Machine 3 average: 17.17 M/s
+Machine 4 average: 17.10 M/s
+Machine 5 average: 17.56 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 32
+Machine 0 average: 17.25 M/s
+Machine 1 average: 17.64 M/s
+Machine 2 average: 17.21 M/s
+Machine 3 average: 17.33 M/s
+Machine 4 average: 17.77 M/s
+Machine 5 average: 17.13 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 64
+Machine 0 average: 17.35 M/s
+Machine 1 average: 18.06 M/s
+Machine 2 average: 17.62 M/s
+Machine 3 average: 17.66 M/s
+Machine 4 average: 17.97 M/s
+Machine 5 average: 17.58 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 4
+Machine 0 average: 17.48 M/s
+Machine 1 average: 17.29 M/s
+Machine 2 average: 17.60 M/s
+Machine 3 average: 17.41 M/s
+Machine 4 average: 17.58 M/s
+Machine 5 average: 17.42 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 8
+Machine 0 average: 18.44 M/s
+Machine 1 average: 18.76 M/s
+Machine 2 average: 18.16 M/s
+Machine 3 average: 18.06 M/s
+Machine 4 average: 18.07 M/s
+Machine 5 average: 17.71 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 32
+Machine 0 average: 18.32 M/s
+Machine 1 average: 19.35 M/s
+Machine 2 average: 18.68 M/s
+Machine 3 average: 18.64 M/s
+Machine 4 average: 18.28 M/s
+Machine 5 average: 18.20 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 168
+#define UNSIG_BATCH 64
+Machine 0 average: 18.21 M/s
+Machine 1 average: 18.99 M/s
+Machine 2 average: 18.29 M/s
+Machine 3 average: 18.39 M/s
+Machine 4 average: 18.74 M/s
+Machine 5 average: 18.61 M/s

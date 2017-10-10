@@ -1,0 +1,1125 @@
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 4
+Machine server_id average: 9.38 M/s
+Machine server_id average: 9.66 M/s
+Machine server_id average: 9.43 M/s
+Machine server_id average: 9.36 M/s
+Machine server_id average: 9.41 M/s
+Machine server_id average: 9.43 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 8
+Machine server_id average: 9.62 M/s
+Machine server_id average: 9.42 M/s
+Machine server_id average: 9.41 M/s
+Machine server_id average: 9.39 M/s
+Machine server_id average: 9.40 M/s
+Machine server_id average: 9.41 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 16
+Machine server_id average: 9.56 M/s
+Machine server_id average: 9.65 M/s
+Machine server_id average: 9.60 M/s
+Machine server_id average: 9.35 M/s
+Machine server_id average: 9.43 M/s
+Machine server_id average: 9.43 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 32
+Machine server_id average: 9.59 M/s
+Machine server_id average: 9.64 M/s
+Machine server_id average: 9.42 M/s
+Machine server_id average: 9.42 M/s
+Machine server_id average: 9.41 M/s
+Machine server_id average: 9.44 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 64
+Machine server_id average: 9.61 M/s
+Machine server_id average: 9.41 M/s
+Machine server_id average: 9.35 M/s
+Machine server_id average: 9.37 M/s
+Machine server_id average: 9.41 M/s
+Machine server_id average: 9.42 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 4
+Machine server_id average: 17.02 M/s
+Machine server_id average: 17.02 M/s
+Machine server_id average: 16.78 M/s
+Machine server_id average: 16.75 M/s
+Machine server_id average: 16.85 M/s
+Machine server_id average: 16.93 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 8
+Machine server_id average: 16.95 M/s
+Machine server_id average: 16.76 M/s
+Machine server_id average: 16.76 M/s
+Machine server_id average: 16.73 M/s
+Machine server_id average: 16.80 M/s
+Machine server_id average: 16.74 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 16
+Machine server_id average: 16.70 M/s
+Machine server_id average: 17.03 M/s
+Machine server_id average: 16.77 M/s
+Machine server_id average: 17.07 M/s
+Machine server_id average: 16.81 M/s
+Machine server_id average: 16.82 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 32
+Machine server_id average: 16.71 M/s
+Machine server_id average: 16.82 M/s
+Machine server_id average: 16.74 M/s
+Machine server_id average: 16.94 M/s
+Machine server_id average: 17.04 M/s
+Machine server_id average: 16.98 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 64
+Machine server_id average: 16.72 M/s
+Machine server_id average: 16.79 M/s
+Machine server_id average: 16.78 M/s
+Machine server_id average: 17.02 M/s
+Machine server_id average: 17.03 M/s
+Machine server_id average: 16.99 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 4
+Machine server_id average: 31.47 M/s
+Machine server_id average: 32.20 M/s
+Machine server_id average: 31.76 M/s
+Machine server_id average: 32.16 M/s
+Machine server_id average: 32.15 M/s
+Machine server_id average: 31.83 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 8
+Machine server_id average: 31.12 M/s
+Machine server_id average: 31.86 M/s
+Machine server_id average: 31.20 M/s
+Machine server_id average: 30.83 M/s
+Machine server_id average: 30.88 M/s
+Machine server_id average: 31.98 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 16
+Machine server_id average: 32.17 M/s
+Machine server_id average: 31.53 M/s
+Machine server_id average: 31.85 M/s
+Machine server_id average: 31.51 M/s
+Machine server_id average: 32.18 M/s
+Machine server_id average: 31.61 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 32
+Machine server_id average: 31.96 M/s
+Machine server_id average: 31.75 M/s
+Machine server_id average: 32.22 M/s
+Machine server_id average: 31.07 M/s
+Machine server_id average: 30.83 M/s
+Machine server_id average: 32.07 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 64
+Machine server_id average: 31.70 M/s
+Machine server_id average: 31.89 M/s
+Machine server_id average: 31.90 M/s
+Machine server_id average: 31.42 M/s
+Machine server_id average: 31.87 M/s
+Machine server_id average: 31.26 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 4
+Machine server_id average: 40.30 M/s
+Machine server_id average: 41.36 M/s
+Machine server_id average: 40.20 M/s
+Machine server_id average: 40.76 M/s
+Machine server_id average: 41.15 M/s
+Machine server_id average: 41.37 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 8
+Machine server_id average: 39.85 M/s
+Machine server_id average: 41.06 M/s
+Machine server_id average: 40.31 M/s
+Machine server_id average: 41.77 M/s
+Machine server_id average: 40.64 M/s
+Machine server_id average: 41.54 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 16
+Machine server_id average: 40.06 M/s
+Machine server_id average: 40.90 M/s
+Machine server_id average: 40.22 M/s
+Machine server_id average: 41.30 M/s
+Machine server_id average: 39.99 M/s
+Machine server_id average: 41.14 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 32
+Machine server_id average: 39.69 M/s
+Machine server_id average: 41.74 M/s
+Machine server_id average: 41.10 M/s
+Machine server_id average: 40.79 M/s
+Machine server_id average: 40.44 M/s
+Machine server_id average: 40.84 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 64
+Machine server_id average: 39.87 M/s
+Machine server_id average: 42.17 M/s
+Machine server_id average: 39.96 M/s
+Machine server_id average: 41.35 M/s
+Machine server_id average: 40.81 M/s
+Machine server_id average: 41.33 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 4
+Machine server_id average: 45.98 M/s
+Machine server_id average: 46.28 M/s
+Machine server_id average: 46.22 M/s
+Machine server_id average: 46.15 M/s
+Machine server_id average: 46.83 M/s
+Machine server_id average: 46.55 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 8
+Machine server_id average: 45.96 M/s
+Machine server_id average: 46.04 M/s
+Machine server_id average: 46.10 M/s
+Machine server_id average: 46.84 M/s
+Machine server_id average: 46.39 M/s
+Machine server_id average: 46.15 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 16
+Machine server_id average: 45.95 M/s
+Machine server_id average: 46.78 M/s
+Machine server_id average: 46.24 M/s
+Machine server_id average: 46.10 M/s
+Machine server_id average: 46.20 M/s
+Machine server_id average: 46.65 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 32
+Machine server_id average: 45.77 M/s
+Machine server_id average: 45.71 M/s
+Machine server_id average: 46.20 M/s
+Machine server_id average: 46.21 M/s
+Machine server_id average: 46.26 M/s
+Machine server_id average: 46.45 M/s
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 64
+Machine server_id average: 45.71 M/s
+Machine server_id average: 46.27 M/s
+Machine server_id average: 46.36 M/s
+Machine server_id average: 46.64 M/s
+Machine server_id average: 46.87 M/s
+Machine server_id average: 46.41 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 4
+Machine server_id average: 16.48 M/s
+Machine server_id average: 16.58 M/s
+Machine server_id average: 16.49 M/s
+Machine server_id average: 16.56 M/s
+Machine server_id average: 16.52 M/s
+Machine server_id average: 16.55 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 8
+Machine server_id average: 16.89 M/s
+Machine server_id average: 16.66 M/s
+Machine server_id average: 16.64 M/s
+Machine server_id average: 16.20 M/s
+Machine server_id average: 16.61 M/s
+Machine server_id average: 16.67 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 16
+Machine server_id average: 16.81 M/s
+Machine server_id average: 16.67 M/s
+Machine server_id average: 16.84 M/s
+Machine server_id average: 16.66 M/s
+Machine server_id average: 16.63 M/s
+Machine server_id average: 16.72 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 32
+Machine server_id average: 16.77 M/s
+Machine server_id average: 16.61 M/s
+Machine server_id average: 16.71 M/s
+Machine server_id average: 16.58 M/s
+Machine server_id average: 16.62 M/s
+Machine server_id average: 16.69 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 64
+Machine server_id average: 16.71 M/s
+Machine server_id average: 16.51 M/s
+Machine server_id average: 16.65 M/s
+Machine server_id average: 16.72 M/s
+Machine server_id average: 16.61 M/s
+Machine server_id average: 16.64 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 4
+Machine server_id average: 30.77 M/s
+Machine server_id average: 31.13 M/s
+Machine server_id average: 30.60 M/s
+Machine server_id average: 30.88 M/s
+Machine server_id average: 30.93 M/s
+Machine server_id average: 30.79 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 8
+Machine server_id average: 30.72 M/s
+Machine server_id average: 30.96 M/s
+Machine server_id average: 30.77 M/s
+Machine server_id average: 30.81 M/s
+Machine server_id average: 30.54 M/s
+Machine server_id average: 30.89 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 16
+Machine server_id average: 30.73 M/s
+Machine server_id average: 31.13 M/s
+Machine server_id average: 30.66 M/s
+Machine server_id average: 30.76 M/s
+Machine server_id average: 30.80 M/s
+Machine server_id average: 30.93 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 32
+Machine server_id average: 30.88 M/s
+Machine server_id average: 31.17 M/s
+Machine server_id average: 30.79 M/s
+Machine server_id average: 30.95 M/s
+Machine server_id average: 31.09 M/s
+Machine server_id average: 31.10 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 64
+Machine server_id average: 30.84 M/s
+Machine server_id average: 30.92 M/s
+Machine server_id average: 31.02 M/s
+Machine server_id average: 29.95 M/s
+Machine server_id average: 30.47 M/s
+Machine server_id average: 30.55 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 4
+Machine server_id average: 50.98 M/s
+Machine server_id average: 50.83 M/s
+Machine server_id average: 51.43 M/s
+Machine server_id average: 51.05 M/s
+Machine server_id average: 51.23 M/s
+Machine server_id average: 51.33 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 8
+Machine server_id average: 50.47 M/s
+Machine server_id average: 50.98 M/s
+Machine server_id average: 51.00 M/s
+Machine server_id average: 50.52 M/s
+Machine server_id average: 51.60 M/s
+Machine server_id average: 50.52 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 16
+Machine server_id average: 50.90 M/s
+Machine server_id average: 51.27 M/s
+Machine server_id average: 51.06 M/s
+Machine server_id average: 51.14 M/s
+Machine server_id average: 50.75 M/s
+Machine server_id average: 50.78 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 32
+Machine server_id average: 50.75 M/s
+Machine server_id average: 50.66 M/s
+Machine server_id average: 50.62 M/s
+Machine server_id average: 51.31 M/s
+Machine server_id average: 49.95 M/s
+Machine server_id average: 49.94 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 64
+Machine server_id average: 51.14 M/s
+Machine server_id average: 50.71 M/s
+Machine server_id average: 50.07 M/s
+Machine server_id average: 50.94 M/s
+Machine server_id average: 49.97 M/s
+Machine server_id average: 51.22 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 4
+Machine server_id average: 49.53 M/s
+Machine server_id average: 50.76 M/s
+Machine server_id average: 49.85 M/s
+Machine server_id average: 51.00 M/s
+Machine server_id average: 49.78 M/s
+Machine server_id average: 50.99 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 8
+Machine server_id average: 51.70 M/s
+Machine server_id average: 51.19 M/s
+Machine server_id average: 50.39 M/s
+Machine server_id average: 51.17 M/s
+Machine server_id average: 49.92 M/s
+Machine server_id average: 50.99 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 16
+Machine server_id average: 49.61 M/s
+Machine server_id average: 51.15 M/s
+Machine server_id average: 50.11 M/s
+Machine server_id average: 50.70 M/s
+Machine server_id average: 50.89 M/s
+Machine server_id average: 51.49 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 32
+Machine server_id average: 51.04 M/s
+Machine server_id average: 51.42 M/s
+Machine server_id average: 51.00 M/s
+Machine server_id average: 51.93 M/s
+Machine server_id average: 50.65 M/s
+Machine server_id average: 51.04 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 64
+Machine server_id average: 49.32 M/s
+Machine server_id average: 51.19 M/s
+Machine server_id average: 51.02 M/s
+Machine server_id average: 51.59 M/s
+Machine server_id average: 51.96 M/s
+Machine server_id average: 51.02 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 4
+Machine server_id average: 49.75 M/s
+Machine server_id average: 50.90 M/s
+Machine server_id average: 49.97 M/s
+Machine server_id average: 50.31 M/s
+Machine server_id average: 50.44 M/s
+Machine server_id average: 49.60 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 8
+Machine server_id average: 50.12 M/s
+Machine server_id average: 49.75 M/s
+Machine server_id average: 51.04 M/s
+Machine server_id average: 49.41 M/s
+Machine server_id average: 50.06 M/s
+Machine server_id average: 50.46 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 16
+Machine server_id average: 50.65 M/s
+Machine server_id average: 49.97 M/s
+Machine server_id average: 50.58 M/s
+Machine server_id average: 49.59 M/s
+Machine server_id average: 50.15 M/s
+Machine server_id average: 49.44 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 32
+Machine server_id average: 50.46 M/s
+Machine server_id average: 50.11 M/s
+Machine server_id average: 49.66 M/s
+Machine server_id average: 49.48 M/s
+Machine server_id average: 50.88 M/s
+Machine server_id average: 49.97 M/s
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 64
+Machine server_id average: 49.49 M/s
+Machine server_id average: 50.32 M/s
+Machine server_id average: 49.92 M/s
+Machine server_id average: 50.48 M/s
+Machine server_id average: 50.67 M/s
+Machine server_id average: 49.66 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 4
+Machine server_id average: 17.69 M/s
+Machine server_id average: 18.98 M/s
+Machine server_id average: 20.11 M/s
+Machine server_id average: 19.52 M/s
+Machine server_id average: 19.70 M/s
+Machine server_id average: 20.39 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 8
+Machine server_id average: 18.66 M/s
+Machine server_id average: 20.17 M/s
+Machine server_id average: 19.75 M/s
+Machine server_id average: 20.13 M/s
+Machine server_id average: 19.99 M/s
+Machine server_id average: 20.44 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 16
+Machine server_id average: 18.78 M/s
+Machine server_id average: 19.27 M/s
+Machine server_id average: 19.84 M/s
+Machine server_id average: 19.23 M/s
+Machine server_id average: 19.99 M/s
+Machine server_id average: 19.93 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 32
+Machine server_id average: 18.59 M/s
+Machine server_id average: 18.87 M/s
+Machine server_id average: 19.42 M/s
+Machine server_id average: 19.95 M/s
+Machine server_id average: 19.95 M/s
+Machine server_id average: 20.42 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 64
+Machine server_id average: 18.60 M/s
+Machine server_id average: 20.31 M/s
+Machine server_id average: 19.68 M/s
+Machine server_id average: 19.93 M/s
+Machine server_id average: 19.64 M/s
+Machine server_id average: 19.85 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 4
+Machine server_id average: 35.64 M/s
+Machine server_id average: 37.07 M/s
+Machine server_id average: 37.62 M/s
+Machine server_id average: 36.45 M/s
+Machine server_id average: 36.48 M/s
+Machine server_id average: 37.96 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 8
+Machine server_id average: 36.72 M/s
+Machine server_id average: 36.67 M/s
+Machine server_id average: 36.58 M/s
+Machine server_id average: 36.70 M/s
+Machine server_id average: 36.67 M/s
+Machine server_id average: 37.67 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 16
+Machine server_id average: 36.64 M/s
+Machine server_id average: 37.90 M/s
+Machine server_id average: 37.79 M/s
+Machine server_id average: 36.70 M/s
+Machine server_id average: 37.47 M/s
+Machine server_id average: 38.19 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 32
+Machine server_id average: 36.33 M/s
+Machine server_id average: 37.75 M/s
+Machine server_id average: 36.73 M/s
+Machine server_id average: 37.31 M/s
+Machine server_id average: 36.97 M/s
+Machine server_id average: 37.98 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 64
+Machine server_id average: 36.56 M/s
+Machine server_id average: 38.65 M/s
+Machine server_id average: 37.28 M/s
+Machine server_id average: 36.98 M/s
+Machine server_id average: 37.07 M/s
+Machine server_id average: 38.32 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 4
+Machine server_id average: 52.74 M/s
+Machine server_id average: 51.61 M/s
+Machine server_id average: 51.72 M/s
+Machine server_id average: 52.48 M/s
+Machine server_id average: 52.89 M/s
+Machine server_id average: 51.71 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 8
+Machine server_id average: 52.20 M/s
+Machine server_id average: 52.29 M/s
+Machine server_id average: 52.96 M/s
+Machine server_id average: 51.29 M/s
+Machine server_id average: 51.72 M/s
+Machine server_id average: 51.99 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 16
+Machine server_id average: 51.57 M/s
+Machine server_id average: 53.00 M/s
+Machine server_id average: 52.52 M/s
+Machine server_id average: 51.72 M/s
+Machine server_id average: 52.86 M/s
+Machine server_id average: 52.96 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 32
+Machine server_id average: 51.77 M/s
+Machine server_id average: 52.65 M/s
+Machine server_id average: 52.47 M/s
+Machine server_id average: 52.60 M/s
+Machine server_id average: 52.39 M/s
+Machine server_id average: 51.62 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 64
+Machine server_id average: 52.07 M/s
+Machine server_id average: 51.66 M/s
+Machine server_id average: 51.78 M/s
+Machine server_id average: 51.49 M/s
+Machine server_id average: 51.83 M/s
+Machine server_id average: 52.26 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 4
+Machine server_id average: 50.95 M/s
+Machine server_id average: 51.91 M/s
+Machine server_id average: 51.48 M/s
+Machine server_id average: 51.78 M/s
+Machine server_id average: 51.66 M/s
+Machine server_id average: 51.69 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 8
+Machine server_id average: 50.83 M/s
+Machine server_id average: 51.29 M/s
+Machine server_id average: 51.44 M/s
+Machine server_id average: 52.27 M/s
+Machine server_id average: 51.58 M/s
+Machine server_id average: 51.81 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 16
+Machine server_id average: 51.62 M/s
+Machine server_id average: 52.57 M/s
+Machine server_id average: 51.80 M/s
+Machine server_id average: 52.13 M/s
+Machine server_id average: 51.61 M/s
+Machine server_id average: 51.58 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 32
+Machine server_id average: 50.54 M/s
+Machine server_id average: 52.07 M/s
+Machine server_id average: 51.27 M/s
+Machine server_id average: 51.54 M/s
+Machine server_id average: 52.04 M/s
+Machine server_id average: 51.94 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 64
+Machine server_id average: 50.02 M/s
+Machine server_id average: 51.49 M/s
+Machine server_id average: 51.55 M/s
+Machine server_id average: 52.10 M/s
+Machine server_id average: 52.68 M/s
+Machine server_id average: 51.70 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 4
+Machine server_id average: 49.46 M/s
+Machine server_id average: 50.26 M/s
+Machine server_id average: 50.10 M/s
+Machine server_id average: 50.86 M/s
+Machine server_id average: 50.49 M/s
+Machine server_id average: 50.52 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 8
+Machine server_id average: 50.24 M/s
+Machine server_id average: 50.03 M/s
+Machine server_id average: 50.00 M/s
+Machine server_id average: 49.65 M/s
+Machine server_id average: 50.82 M/s
+Machine server_id average: 50.27 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 16
+Machine server_id average: 49.79 M/s
+Machine server_id average: 50.84 M/s
+Machine server_id average: 50.21 M/s
+Machine server_id average: 50.41 M/s
+Machine server_id average: 51.43 M/s
+Machine server_id average: 51.00 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 32
+Machine server_id average: 49.50 M/s
+Machine server_id average: 50.00 M/s
+Machine server_id average: 50.30 M/s
+Machine server_id average: 50.14 M/s
+Machine server_id average: 50.56 M/s
+Machine server_id average: 50.60 M/s
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 64
+Machine server_id average: 50.56 M/s
+Machine server_id average: 49.83 M/s
+Machine server_id average: 50.10 M/s
+Machine server_id average: 50.84 M/s
+Machine server_id average: 50.72 M/s
+Machine server_id average: 50.45 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 4
+Machine server_id average: 18.36 M/s
+Machine server_id average: 19.36 M/s
+Machine server_id average: 19.38 M/s
+Machine server_id average: 19.91 M/s
+Machine server_id average: 19.91 M/s
+Machine server_id average: 19.76 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 8
+Machine server_id average: 18.85 M/s
+Machine server_id average: 18.72 M/s
+Machine server_id average: 19.48 M/s
+Machine server_id average: 20.17 M/s
+Machine server_id average: 19.94 M/s
+Machine server_id average: 20.56 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 16
+Machine server_id average: 18.79 M/s
+Machine server_id average: 19.51 M/s
+Machine server_id average: 19.46 M/s
+Machine server_id average: 20.08 M/s
+Machine server_id average: 19.77 M/s
+Machine server_id average: 19.76 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 32
+Machine server_id average: 18.90 M/s
+Machine server_id average: 19.69 M/s
+Machine server_id average: 19.70 M/s
+Machine server_id average: 20.16 M/s
+Machine server_id average: 19.91 M/s
+Machine server_id average: 19.69 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 64
+Machine server_id average: 19.79 M/s
+Machine server_id average: 18.47 M/s
+Machine server_id average: 19.69 M/s
+Machine server_id average: 19.77 M/s
+Machine server_id average: 19.76 M/s
+Machine server_id average: 19.69 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 4
+Machine server_id average: 38.05 M/s
+Machine server_id average: 37.80 M/s
+Machine server_id average: 37.78 M/s
+Machine server_id average: 37.07 M/s
+Machine server_id average: 37.46 M/s
+Machine server_id average: 37.55 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 8
+Machine server_id average: 36.81 M/s
+Machine server_id average: 37.56 M/s
+Machine server_id average: 36.97 M/s
+Machine server_id average: 37.41 M/s
+Machine server_id average: 33.57 M/s
+Machine server_id average: 38.21 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 16
+Machine server_id average: 37.00 M/s
+Machine server_id average: 37.91 M/s
+Machine server_id average: 36.64 M/s
+Machine server_id average: 36.58 M/s
+Machine server_id average: 36.87 M/s
+Machine server_id average: 38.20 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 32
+Machine server_id average: 37.84 M/s
+Machine server_id average: 37.62 M/s
+Machine server_id average: 37.38 M/s
+Machine server_id average: 37.80 M/s
+Machine server_id average: 37.59 M/s
+Machine server_id average: 37.75 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 64
+Machine server_id average: 36.94 M/s
+Machine server_id average: 38.05 M/s
+Machine server_id average: 37.85 M/s
+Machine server_id average: 38.04 M/s
+Machine server_id average: 37.54 M/s
+Machine server_id average: 37.95 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 4
+Machine server_id average: 51.87 M/s
+Machine server_id average: 52.22 M/s
+Machine server_id average: 52.84 M/s
+Machine server_id average: 51.78 M/s
+Machine server_id average: 52.60 M/s
+Machine server_id average: 52.36 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 8
+Machine server_id average: 51.67 M/s
+Machine server_id average: 52.58 M/s
+Machine server_id average: 52.54 M/s
+Machine server_id average: 51.94 M/s
+Machine server_id average: 52.65 M/s
+Machine server_id average: 52.22 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 16
+Machine server_id average: 51.87 M/s
+Machine server_id average: 53.30 M/s
+Machine server_id average: 52.20 M/s
+Machine server_id average: 52.60 M/s
+Machine server_id average: 52.27 M/s
+Machine server_id average: 51.51 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 32
+Machine server_id average: 51.11 M/s
+Machine server_id average: 51.90 M/s
+Machine server_id average: 51.59 M/s
+Machine server_id average: 52.61 M/s
+Machine server_id average: 51.75 M/s
+Machine server_id average: 51.45 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 64
+Machine server_id average: 51.21 M/s
+Machine server_id average: 53.06 M/s
+Machine server_id average: 51.85 M/s
+Machine server_id average: 51.71 M/s
+Machine server_id average: 52.98 M/s
+Machine server_id average: 52.83 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 4
+Machine server_id average: 50.83 M/s
+Machine server_id average: 51.52 M/s
+Machine server_id average: 50.25 M/s
+Machine server_id average: 51.39 M/s
+Machine server_id average: 52.00 M/s
+Machine server_id average: 52.25 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 8
+Machine server_id average: 50.76 M/s
+Machine server_id average: 52.05 M/s
+Machine server_id average: 51.93 M/s
+Machine server_id average: 51.72 M/s
+Machine server_id average: 52.25 M/s
+Machine server_id average: 51.71 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 16
+Machine server_id average: 50.43 M/s
+Machine server_id average: 51.70 M/s
+Machine server_id average: 50.39 M/s
+Machine server_id average: 51.34 M/s
+Machine server_id average: 51.65 M/s
+Machine server_id average: 51.71 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 32
+Machine server_id average: 50.64 M/s
+Machine server_id average: 52.36 M/s
+Machine server_id average: 51.45 M/s
+Machine server_id average: 52.09 M/s
+Machine server_id average: 51.99 M/s
+Machine server_id average: 52.53 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 64
+Machine server_id average: 50.04 M/s
+Machine server_id average: 51.92 M/s
+Machine server_id average: 52.11 M/s
+Machine server_id average: 51.39 M/s
+Machine server_id average: 52.05 M/s
+Machine server_id average: 51.78 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 4
+Machine server_id average: 49.57 M/s
+Machine server_id average: 50.11 M/s
+Machine server_id average: 50.33 M/s
+Machine server_id average: 50.35 M/s
+Machine server_id average: 51.01 M/s
+Machine server_id average: 50.63 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 8
+Machine server_id average: 50.15 M/s
+Machine server_id average: 49.98 M/s
+Machine server_id average: 50.24 M/s
+Machine server_id average: 49.58 M/s
+Machine server_id average: 50.41 M/s
+Machine server_id average: 50.10 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 16
+Machine server_id average: 49.64 M/s
+Machine server_id average: 50.19 M/s
+Machine server_id average: 50.11 M/s
+Machine server_id average: 50.01 M/s
+Machine server_id average: 50.42 M/s
+Machine server_id average: 50.40 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 32
+Machine server_id average: 49.61 M/s
+Machine server_id average: 50.22 M/s
+Machine server_id average: 50.95 M/s
+Machine server_id average: 49.73 M/s
+Machine server_id average: 50.62 M/s
+Machine server_id average: 50.36 M/s
+#define WINDOW_SIZE 48
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 64
+Machine server_id average: 49.61 M/s
+Machine server_id average: 50.05 M/s
+Machine server_id average: 50.10 M/s
+Machine server_id average: 51.06 M/s
+Machine server_id average: 50.25 M/s
+Machine server_id average: 50.32 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 4
+Machine server_id average: 19.18 M/s
+Machine server_id average: 19.57 M/s
+Machine server_id average: 19.49 M/s
+Machine server_id average: 20.35 M/s
+Machine server_id average: 19.91 M/s
+Machine server_id average: 19.15 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 8
+Machine server_id average: 18.25 M/s
+Machine server_id average: 19.96 M/s
+Machine server_id average: 19.55 M/s
+Machine server_id average: 19.67 M/s
+Machine server_id average: 19.09 M/s
+Machine server_id average: 19.64 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 16
+Machine server_id average: 18.85 M/s
+Machine server_id average: 19.48 M/s
+Machine server_id average: 19.47 M/s
+Machine server_id average: 20.68 M/s
+Machine server_id average: 19.54 M/s
+Machine server_id average: 19.80 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 32
+Machine server_id average: 18.27 M/s
+Machine server_id average: 19.53 M/s
+Machine server_id average: 19.52 M/s
+Machine server_id average: 20.60 M/s
+Machine server_id average: 19.01 M/s
+Machine server_id average: 19.04 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 12
+#define UNSIG_BATCH 64
+Machine server_id average: 19.10 M/s
+Machine server_id average: 19.89 M/s
+Machine server_id average: 19.87 M/s
+Machine server_id average: 19.56 M/s
+Machine server_id average: 19.18 M/s
+Machine server_id average: 19.73 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 4
+Machine server_id average: 35.99 M/s
+Machine server_id average: 37.82 M/s
+Machine server_id average: 37.66 M/s
+Machine server_id average: 38.56 M/s
+Machine server_id average: 36.43 M/s
+Machine server_id average: 37.97 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 8
+Machine server_id average: 36.78 M/s
+Machine server_id average: 38.13 M/s
+Machine server_id average: 37.01 M/s
+Machine server_id average: 35.32 M/s
+Machine server_id average: 37.22 M/s
+Machine server_id average: 38.25 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 16
+Machine server_id average: 37.35 M/s
+Machine server_id average: 38.64 M/s
+Machine server_id average: 37.32 M/s
+Machine server_id average: 38.49 M/s
+Machine server_id average: 37.01 M/s
+Machine server_id average: 37.15 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 32
+Machine server_id average: 37.16 M/s
+Machine server_id average: 37.84 M/s
+Machine server_id average: 36.33 M/s
+Machine server_id average: 36.19 M/s
+Machine server_id average: 37.17 M/s
+Machine server_id average: 37.63 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 24
+#define UNSIG_BATCH 64
+Machine server_id average: 36.43 M/s
+Machine server_id average: 37.22 M/s
+Machine server_id average: 37.30 M/s
+Machine server_id average: 38.77 M/s
+Machine server_id average: 37.24 M/s
+Machine server_id average: 37.69 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 4
+Machine server_id average: 51.60 M/s
+Machine server_id average: 52.61 M/s
+Machine server_id average: 52.14 M/s
+Machine server_id average: 52.13 M/s
+Machine server_id average: 52.46 M/s
+Machine server_id average: 53.04 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 8
+Machine server_id average: 52.56 M/s
+Machine server_id average: 53.39 M/s
+Machine server_id average: 52.65 M/s
+Machine server_id average: 51.84 M/s
+Machine server_id average: 51.56 M/s
+Machine server_id average: 51.70 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 16
+Machine server_id average: 51.86 M/s
+Machine server_id average: 52.35 M/s
+Machine server_id average: 52.32 M/s
+Machine server_id average: 51.80 M/s
+Machine server_id average: 51.71 M/s
+Machine server_id average: 52.66 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 32
+Machine server_id average: 52.27 M/s
+Machine server_id average: 52.39 M/s
+Machine server_id average: 52.21 M/s
+Machine server_id average: 52.38 M/s
+Machine server_id average: 52.71 M/s
+Machine server_id average: 52.71 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 48
+#define UNSIG_BATCH 64
+Machine server_id average: 51.91 M/s
+Machine server_id average: 52.84 M/s
+Machine server_id average: 53.38 M/s
+Machine server_id average: 51.06 M/s
+Machine server_id average: 51.88 M/s
+Machine server_id average: 52.34 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 4
+Machine server_id average: 51.54 M/s
+Machine server_id average: 51.76 M/s
+Machine server_id average: 52.10 M/s
+Machine server_id average: 51.96 M/s
+Machine server_id average: 52.93 M/s
+Machine server_id average: 51.64 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 8
+Machine server_id average: 51.68 M/s
+Machine server_id average: 51.73 M/s
+Machine server_id average: 52.30 M/s
+Machine server_id average: 52.26 M/s
+Machine server_id average: 52.32 M/s
+Machine server_id average: 52.15 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 16
+Machine server_id average: 52.08 M/s
+Machine server_id average: 51.99 M/s
+Machine server_id average: 51.73 M/s
+Machine server_id average: 52.17 M/s
+Machine server_id average: 51.61 M/s
+Machine server_id average: 51.70 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 32
+Machine server_id average: 52.47 M/s
+Machine server_id average: 52.11 M/s
+Machine server_id average: 52.64 M/s
+Machine server_id average: 51.75 M/s
+Machine server_id average: 51.66 M/s
+Machine server_id average: 52.51 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 66
+#define UNSIG_BATCH 64
+Machine server_id average: 52.20 M/s
+Machine server_id average: 51.40 M/s
+Machine server_id average: 52.60 M/s
+Machine server_id average: 52.34 M/s
+Machine server_id average: 51.76 M/s
+Machine server_id average: 52.39 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 4
+Machine server_id average: 51.43 M/s
+Machine server_id average: 52.10 M/s
+Machine server_id average: 52.13 M/s
+Machine server_id average: 51.57 M/s
+Machine server_id average: 52.22 M/s
+Machine server_id average: 52.15 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 8
+Machine server_id average: 51.17 M/s
+Machine server_id average: 52.05 M/s
+Machine server_id average: 52.23 M/s
+Machine server_id average: 51.62 M/s
+Machine server_id average: 53.14 M/s
+Machine server_id average: 51.96 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 16
+Machine server_id average: 51.19 M/s
+Machine server_id average: 51.67 M/s
+Machine server_id average: 52.24 M/s
+Machine server_id average: 53.07 M/s
+Machine server_id average: 52.09 M/s
+Machine server_id average: 51.88 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 32
+Machine server_id average: 51.27 M/s
+Machine server_id average: 51.58 M/s
+Machine server_id average: 52.64 M/s
+Machine server_id average: 51.81 M/s
+Machine server_id average: 52.06 M/s
+Machine server_id average: 52.20 M/s
+#define WINDOW_SIZE 64
+#define NUM_WORKERS 84
+#define UNSIG_BATCH 64
+Machine server_id average: 52.03 M/s
+Machine server_id average: 52.50 M/s
+Machine server_id average: 52.78 M/s
+Machine server_id average: 52.39 M/s
+Machine server_id average: 52.32 M/s
+Machine server_id average: 52.73 M/s

@@ -1,0 +1,612 @@
+#define SIZE 32
+#define VM_PER_MACHINE 1
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 33.22 M/s
+Machine 1 average: 33.24 M/s
+Machine 2 average: 33.17 M/s
+Machine 3 average: 33.35 M/s
+Machine 4 average: 33.13 M/s
+Machine 5 average: 33.13 M/s
+Machine 6 average: 33.13 M/s
+Machine 7 average: 33.19 M/s
+Machine 8 average: 33.16 M/s
+Machine 9 average: 33.22 M/s
+Machine 10 average: 33.27 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 1
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 42.10 M/s
+Machine 1 average: 41.87 M/s
+Machine 2 average: 41.09 M/s
+Machine 3 average: 41.44 M/s
+Machine 4 average: 41.58 M/s
+Machine 5 average: 41.56 M/s
+Machine 6 average: 41.29 M/s
+Machine 7 average: 41.38 M/s
+Machine 8 average: 41.30 M/s
+Machine 9 average: 41.64 M/s
+Machine 10 average: 41.66 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 1
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 48.13 M/s
+Machine 1 average: 47.64 M/s
+Machine 2 average: 46.90 M/s
+Machine 3 average: 47.08 M/s
+Machine 4 average: 47.18 M/s
+Machine 5 average: 47.64 M/s
+Machine 6 average: 47.10 M/s
+Machine 7 average: 47.06 M/s
+Machine 8 average: 47.18 M/s
+Machine 9 average: 47.48 M/s
+Machine 10 average: 47.52 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 1
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 47.98 M/s
+Machine 1 average: 47.87 M/s
+Machine 2 average: 47.45 M/s
+Machine 3 average: 47.45 M/s
+Machine 4 average: 47.79 M/s
+Machine 5 average: 47.89 M/s
+Machine 6 average: 47.51 M/s
+Machine 7 average: 47.47 M/s
+Machine 8 average: 47.47 M/s
+Machine 9 average: 47.70 M/s
+Machine 10 average: 47.90 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 2
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 31.72 M/s
+Machine 1 average: 31.81 M/s
+Machine 2 average: 31.70 M/s
+Machine 3 average: 31.72 M/s
+Machine 4 average: 31.73 M/s
+Machine 5 average: 31.72 M/s
+Machine 6 average: 31.67 M/s
+Machine 7 average: 31.77 M/s
+Machine 8 average: 31.77 M/s
+Machine 9 average: 31.74 M/s
+Machine 10 average: 31.76 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 2
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 36.79 M/s
+Machine 1 average: 36.70 M/s
+Machine 2 average: 36.09 M/s
+Machine 3 average: 36.26 M/s
+Machine 4 average: 36.20 M/s
+Machine 5 average: 36.35 M/s
+Machine 6 average: 36.03 M/s
+Machine 7 average: 36.44 M/s
+Machine 8 average: 36.38 M/s
+Machine 9 average: 36.27 M/s
+Machine 10 average: 36.54 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 2
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 40.35 M/s
+Machine 1 average: 40.59 M/s
+Machine 2 average: 39.63 M/s
+Machine 3 average: 40.04 M/s
+Machine 4 average: 40.03 M/s
+Machine 5 average: 40.10 M/s
+Machine 6 average: 39.65 M/s
+Machine 7 average: 40.11 M/s
+Machine 8 average: 40.05 M/s
+Machine 9 average: 40.06 M/s
+Machine 10 average: 40.15 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 2
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 43.40 M/s
+Machine 1 average: 43.53 M/s
+Machine 2 average: 42.76 M/s
+Machine 3 average: 43.01 M/s
+Machine 4 average: 43.00 M/s
+Machine 5 average: 43.16 M/s
+Machine 6 average: 43.13 M/s
+Machine 7 average: 43.13 M/s
+Machine 8 average: 43.10 M/s
+Machine 9 average: 43.00 M/s
+Machine 10 average: 43.11 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 3
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 31.04 M/s
+Machine 1 average: 31.07 M/s
+Machine 2 average: 31.15 M/s
+Machine 3 average: 31.14 M/s
+Machine 4 average: 31.17 M/s
+Machine 5 average: 31.15 M/s
+Machine 6 average: 31.01 M/s
+Machine 7 average: 31.21 M/s
+Machine 8 average: 31.15 M/s
+Machine 9 average: 31.16 M/s
+Machine 10 average: 31.19 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 3
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 34.42 M/s
+Machine 1 average: 34.53 M/s
+Machine 2 average: 33.87 M/s
+Machine 3 average: 34.01 M/s
+Machine 4 average: 34.09 M/s
+Machine 5 average: 34.17 M/s
+Machine 6 average: 33.75 M/s
+Machine 7 average: 34.32 M/s
+Machine 8 average: 34.21 M/s
+Machine 9 average: 34.03 M/s
+Machine 10 average: 34.21 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 3
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 37.23 M/s
+Machine 1 average: 37.47 M/s
+Machine 2 average: 36.38 M/s
+Machine 3 average: 36.81 M/s
+Machine 4 average: 36.82 M/s
+Machine 5 average: 36.86 M/s
+Machine 6 average: 36.73 M/s
+Machine 7 average: 36.91 M/s
+Machine 8 average: 36.77 M/s
+Machine 9 average: 36.70 M/s
+Machine 10 average: 36.91 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 3
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 39.42 M/s
+Machine 1 average: 39.62 M/s
+Machine 2 average: 38.72 M/s
+Machine 3 average: 39.01 M/s
+Machine 4 average: 39.05 M/s
+Machine 5 average: 39.14 M/s
+Machine 6 average: 38.94 M/s
+Machine 7 average: 39.29 M/s
+Machine 8 average: 39.20 M/s
+Machine 9 average: 39.12 M/s
+Machine 10 average: 39.34 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 4
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 30.58 M/s
+Machine 1 average: 30.67 M/s
+Machine 2 average: 30.60 M/s
+Machine 3 average: 30.61 M/s
+Machine 4 average: 30.64 M/s
+Machine 5 average: 30.61 M/s
+Machine 6 average: 30.46 M/s
+Machine 7 average: 30.65 M/s
+Machine 8 average: 30.68 M/s
+Machine 9 average: 30.61 M/s
+Machine 10 average: 30.63 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 4
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 33.11 M/s
+Machine 1 average: 33.26 M/s
+Machine 2 average: 32.69 M/s
+Machine 3 average: 32.91 M/s
+Machine 4 average: 32.88 M/s
+Machine 5 average: 33.01 M/s
+Machine 6 average: 33.02 M/s
+Machine 7 average: 33.04 M/s
+Machine 8 average: 32.96 M/s
+Machine 9 average: 32.90 M/s
+Machine 10 average: 33.00 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 4
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 34.88 M/s
+Machine 1 average: 35.30 M/s
+Machine 2 average: 34.43 M/s
+Machine 3 average: 34.84 M/s
+Machine 4 average: 34.84 M/s
+Machine 5 average: 35.11 M/s
+Machine 6 average: 34.64 M/s
+Machine 7 average: 34.95 M/s
+Machine 8 average: 34.75 M/s
+Machine 9 average: 34.68 M/s
+Machine 10 average: 34.75 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 4
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 36.86 M/s
+Machine 1 average: 37.19 M/s
+Machine 2 average: 36.30 M/s
+Machine 3 average: 36.60 M/s
+Machine 4 average: 36.55 M/s
+Machine 5 average: 36.65 M/s
+Machine 6 average: 36.94 M/s
+Machine 7 average: 36.81 M/s
+Machine 8 average: 36.86 M/s
+Machine 9 average: 36.62 M/s
+Machine 10 average: 36.66 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 5
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 30.24 M/s
+Machine 1 average: 29.80 M/s
+Machine 2 average: 30.26 M/s
+Machine 3 average: 30.26 M/s
+Machine 4 average: 30.27 M/s
+Machine 5 average: 30.25 M/s
+Machine 6 average: 30.18 M/s
+Machine 7 average: 30.28 M/s
+Machine 8 average: 30.30 M/s
+Machine 9 average: 30.27 M/s
+Machine 10 average: 30.30 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 5
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 32.06 M/s
+Machine 1 average: 32.28 M/s
+Machine 2 average: 31.84 M/s
+Machine 3 average: 32.15 M/s
+Machine 4 average: 32.16 M/s
+Machine 5 average: 32.19 M/s
+Machine 6 average: 31.91 M/s
+Machine 7 average: 32.12 M/s
+Machine 8 average: 32.18 M/s
+Machine 9 average: 32.05 M/s
+Machine 10 average: 32.14 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 5
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 33.67 M/s
+Machine 1 average: 33.85 M/s
+Machine 2 average: 33.18 M/s
+Machine 3 average: 33.52 M/s
+Machine 4 average: 33.56 M/s
+Machine 5 average: 33.59 M/s
+Machine 6 average: 33.65 M/s
+Machine 7 average: 33.51 M/s
+Machine 8 average: 33.58 M/s
+Machine 9 average: 33.59 M/s
+Machine 10 average: 33.61 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 5
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 35.06 M/s
+Machine 1 average: 35.44 M/s
+Machine 2 average: 34.66 M/s
+Machine 3 average: 35.12 M/s
+Machine 4 average: 35.15 M/s
+Machine 5 average: 35.22 M/s
+Machine 6 average: 35.14 M/s
+Machine 7 average: 35.09 M/s
+Machine 8 average: 35.26 M/s
+Machine 9 average: 35.01 M/s
+Machine 10 average: 35.14 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 6
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 30.03 M/s
+Machine 1 average: 30.07 M/s
+Machine 2 average: 30.03 M/s
+Machine 3 average: 30.04 M/s
+Machine 4 average: 30.04 M/s
+Machine 5 average: 30.03 M/s
+Machine 6 average: 30.10 M/s
+Machine 7 average: 30.06 M/s
+Machine 8 average: 30.08 M/s
+Machine 9 average: 30.04 M/s
+Machine 10 average: 30.06 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 6
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 31.54 M/s
+Machine 1 average: 31.83 M/s
+Machine 2 average: 31.28 M/s
+Machine 3 average: 31.58 M/s
+Machine 4 average: 31.65 M/s
+Machine 5 average: 31.57 M/s
+Machine 6 average: 31.63 M/s
+Machine 7 average: 31.61 M/s
+Machine 8 average: 31.64 M/s
+Machine 9 average: 31.56 M/s
+Machine 10 average: 31.63 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 6
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 32.77 M/s
+Machine 1 average: 32.65 M/s
+Machine 2 average: 32.27 M/s
+Machine 3 average: 32.86 M/s
+Machine 4 average: 32.71 M/s
+Machine 5 average: 32.84 M/s
+Machine 6 average: 33.82 M/s
+Machine 7 average: 32.73 M/s
+Machine 8 average: 32.86 M/s
+Machine 9 average: 32.69 M/s
+Machine 10 average: 32.60 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 6
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 34.03 M/s
+Machine 1 average: 34.56 M/s
+Machine 2 average: 33.55 M/s
+Machine 3 average: 33.80 M/s
+Machine 4 average: 33.91 M/s
+Machine 5 average: 33.81 M/s
+Machine 6 average: 34.35 M/s
+Machine 7 average: 34.16 M/s
+Machine 8 average: 33.92 M/s
+Machine 9 average: 33.78 M/s
+Machine 10 average: 33.86 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 7
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 29.78 M/s
+Machine 1 average: 29.51 M/s
+Machine 2 average: 29.78 M/s
+Machine 3 average: 29.75 M/s
+Machine 4 average: 29.71 M/s
+Machine 5 average: 29.74 M/s
+Machine 6 average: 29.84 M/s
+Machine 7 average: 29.81 M/s
+Machine 8 average: 29.84 M/s
+Machine 9 average: 29.75 M/s
+Machine 10 average: 29.76 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 7
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 31.28 M/s
+Machine 1 average: 31.21 M/s
+Machine 2 average: 30.85 M/s
+Machine 3 average: 31.22 M/s
+Machine 4 average: 31.09 M/s
+Machine 5 average: 31.70 M/s
+Machine 6 average: 31.11 M/s
+Machine 7 average: 31.09 M/s
+Machine 8 average: 31.03 M/s
+Machine 9 average: 30.95 M/s
+Machine 10 average: 31.00 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 7
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 31.96 M/s
+Machine 1 average: 31.99 M/s
+Machine 2 average: 31.42 M/s
+Machine 3 average: 31.85 M/s
+Machine 4 average: 31.67 M/s
+Machine 5 average: 31.87 M/s
+Machine 6 average: 33.58 M/s
+Machine 7 average: 32.18 M/s
+Machine 8 average: 32.00 M/s
+Machine 9 average: 32.17 M/s
+Machine 10 average: 31.94 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 7
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 33.37 M/s
+Machine 1 average: 33.44 M/s
+Machine 2 average: 32.10 M/s
+Machine 3 average: 32.54 M/s
+Machine 4 average: 32.08 M/s
+Machine 5 average: 32.51 M/s
+Machine 6 average: 34.50 M/s
+Machine 7 average: 33.19 M/s
+Machine 8 average: 32.26 M/s
+Machine 9 average: 31.96 M/s
+Machine 10 average: 32.34 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 8
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 29.32 M/s
+Machine 1 average: 29.49 M/s
+Machine 2 average: 29.57 M/s
+Machine 3 average: 29.56 M/s
+Machine 4 average: 29.48 M/s
+Machine 5 average: 29.42 M/s
+Machine 6 average: 29.40 M/s
+Machine 7 average: 29.41 M/s
+Machine 8 average: 29.43 M/s
+Machine 9 average: 29.17 M/s
+Machine 10 average: 29.34 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 8
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 30.63 M/s
+Machine 1 average: 30.37 M/s
+Machine 2 average: 29.91 M/s
+Machine 3 average: 30.76 M/s
+Machine 4 average: 30.76 M/s
+Machine 5 average: 30.74 M/s
+Machine 6 average: 30.92 M/s
+Machine 7 average: 30.88 M/s
+Machine 8 average: 30.24 M/s
+Machine 9 average: 30.11 M/s
+Machine 10 average: 30.92 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 8
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 30.05 M/s
+Machine 1 average: 29.67 M/s
+Machine 2 average: 30.53 M/s
+Machine 3 average: 30.59 M/s
+Machine 4 average: 30.63 M/s
+Machine 5 average: 30.37 M/s
+Machine 6 average: 31.99 M/s
+Machine 7 average: 32.01 M/s
+Machine 8 average: 32.30 M/s
+Machine 9 average: 31.86 M/s
+Machine 10 average: 31.52 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 8
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 30.53 M/s
+Machine 1 average: 29.70 M/s
+Machine 2 average: 29.64 M/s
+Machine 3 average: 29.52 M/s
+Machine 4 average: 29.85 M/s
+Machine 5 average: 30.44 M/s
+Machine 6 average: 29.35 M/s
+Machine 7 average: 29.78 M/s
+Machine 8 average: 29.70 M/s
+Machine 9 average: 29.90 M/s
+Machine 10 average: 29.71 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 9
+#define WINDOW_SIZE 8
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 29.09 M/s
+Machine 1 average: 28.99 M/s
+Machine 2 average: 29.20 M/s
+Machine 3 average: 29.18 M/s
+Machine 4 average: 29.14 M/s
+Machine 5 average: 29.22 M/s
+Machine 6 average: 29.14 M/s
+Machine 7 average: 29.06 M/s
+Machine 8 average: 29.04 M/s
+Machine 9 average: 29.00 M/s
+Machine 10 average: 28.99 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 9
+#define WINDOW_SIZE 16
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 29.79 M/s
+Machine 1 average: 29.38 M/s
+Machine 2 average: 29.32 M/s
+Machine 3 average: 29.14 M/s
+Machine 4 average: 28.95 M/s
+Machine 5 average: 29.13 M/s
+Machine 6 average: 29.61 M/s
+Machine 7 average: 29.66 M/s
+Machine 8 average: 29.54 M/s
+Machine 9 average: 29.46 M/s
+Machine 10 average: 30.00 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 9
+#define WINDOW_SIZE 24
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 30.23 M/s
+Machine 1 average: 29.66 M/s
+Machine 2 average: 30.02 M/s
+Machine 3 average: 29.13 M/s
+Machine 4 average: 29.58 M/s
+Machine 5 average: 29.27 M/s
+Machine 6 average: 29.90 M/s
+Machine 7 average: 30.28 M/s
+Machine 8 average: 29.70 M/s
+Machine 9 average: 29.85 M/s
+Machine 10 average: 29.43 M/s
+#define SIZE 32
+#define VM_PER_MACHINE 9
+#define WINDOW_SIZE 32
+#define NUM_WORKERS 154
+#define UNSIG_BATCH 1
+#define ALLSIG 1
+Machine 0 average: 29.18 M/s
+Machine 1 average: 28.94 M/s
+Machine 2 average: 29.18 M/s
+Machine 3 average: 29.27 M/s
+Machine 4 average: 28.90 M/s
+Machine 5 average: 29.20 M/s
+Machine 6 average: 28.85 M/s
+Machine 7 average: 29.69 M/s
+Machine 8 average: 29.34 M/s
+Machine 9 average: 28.83 M/s
+Machine 10 average: 29.45 M/s

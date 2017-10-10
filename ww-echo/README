@@ -1,0 +1,7 @@
+* Server's window must be equal to client's window. The client sprays W_c WRITEs
+into the server's buffer and the server replies with W_s WRITEs. For this setup
+to measure ECHO performance, W_s = W_c is required.
+
+* The WRITE sizes used by servers and clients can be different. A server only
+waits for conn_buf[0] to become non-zero as a signal of arrival of W_c WRITEs
+from the client, which will happen regardless of client's param.size.
