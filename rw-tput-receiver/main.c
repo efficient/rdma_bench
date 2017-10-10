@@ -1,5 +1,5 @@
-#include "hrd.h"
 #include <getopt.h>
+#include "hrd.h"
 
 #define BUF_SIZE (8 * 1024 * 1024)
 #define CACHELINE_SIZE 64

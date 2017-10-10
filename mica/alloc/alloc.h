@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 /*
  * Memory allocation using segregated fit (similar to Lea).
  * Taken from MICA (NSDI 14) code.
@@ -20,16 +19,17 @@
 
 #pragma once
 
+#include <assert.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include <unistd.h>
 
 struct mica_alloc_item {
-	// uint32_t item_size;		/* XXX: isn't this breaking 8-byte alignment? */
-	uint64_t item_size;		/* XXX: isn't this breaking 8-byte alignment? */
-	uint8_t data[0];
+  // uint32_t item_size;		/* XXX: isn't this breaking 8-byte alignment?
+  // */
+  uint64_t item_size; /* XXX: isn't this breaking 8-byte alignment? */
+  uint8_t data[0];
 };
 
 /*
@@ -44,7 +44,7 @@ struct mica_alloc_item {
  * 31. Chunks with >= (32 + 256) bytes.
  */
 #define MICA_ALLOC_NUM_CLASSES (32)
-#define MICA_ALLOC_CLASS_INCREMENT (8)	/* 8-byte increment for classes */
+#define MICA_ALLOC_CLASS_INCREMENT (8) /* 8-byte increment for classes */
 
 #define MICA_ALLOC_INSUFFICIENT_SPACE ((uint64_t)-1)
 
@@ -56,8 +56,8 @@ struct mica_alloc_item {
 #define MICA_ALLOC_TAG_VEC(size, status) ((size) | (status) << 63UL)
 
 typedef int bool;
-#define true (1)
-#define false (0)
+#define true(1)
+#define false(0)
 
 #define MICA_ROUNDUP8(x) (((x) + 7UL) & (~7UL))
 #define MICA_ROUNDUP2M(x) (((x) + 2097151UL) & (~2097151UL))
@@ -83,7 +83,7 @@ typedef int bool;
  * (N - 16 bytes)
  * 8-byte: status (1 bit), size (63 bit)
  *
- * 
+ *
  * Notes:
  * 1. Only free chunks have prev and next pointer fields. The space overhead
  * per item is 16B, not 32B. XXX: Is this really true?
@@ -102,23 +102,19 @@ typedef int bool;
 #define MICA_ALLOC_MAX_SIZE ((1UL << 40) - 1)
 
 struct mica_alloc {
-	uint32_t lock;
-	uint64_t size;	/* Total memory available to the allocator */
-	uint8_t *data;	/* Base address of the reserved memory */
-	uint8_t *free_head[MICA_ALLOC_NUM_CLASSES];	/* Per-class head free ptr */
+  uint32_t lock;
+  uint64_t size; /* Total memory available to the allocator */
+  uint8_t* data; /* Base address of the reserved memory */
+  uint8_t* free_head[MICA_ALLOC_NUM_CLASSES]; /* Per-class head free ptr */
 };
 
-void mica_alloc_reset(struct mica_alloc *alloc);
+void mica_alloc_reset(struct mica_alloc* alloc);
 
-void mica_alloc_init(struct mica_alloc *alloc,
-	uint64_t size, size_t numa_node);
+void mica_alloc_init(struct mica_alloc* alloc, uint64_t size, size_t numa_node);
 
-struct mica_alloc_item *mica_alloc_get_item(
-	const struct mica_alloc *alloc, uint64_t alloc_offset);
+struct mica_alloc_item* mica_alloc_get_item(const struct mica_alloc* alloc,
+                                            uint64_t alloc_offset);
 
-uint64_t mica_alloc_allocate(struct mica_alloc *alloc,
-	uint32_t item_size);
+uint64_t mica_alloc_allocate(struct mica_alloc* alloc, uint32_t item_size);
 
-void mica_alloc_deallocate(struct mica_alloc *alloc,
-	uint64_t alloc_offset);
-
+void mica_alloc_deallocate(struct mica_alloc* alloc, uint64_t alloc_offset);
