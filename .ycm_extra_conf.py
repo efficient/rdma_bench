@@ -40,6 +40,7 @@ flags = [
     '-Werror',
     '-Wno-unused-result',
     '-I', '/users/akalia/rdma_bench/libhrd/',
+    '-I', '/users/akalia/rdma_bench/libhrd_cpp/',
     '-I', '/users/akalia/rdma_bench/mica/',
 ]
 
