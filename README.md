@@ -119,6 +119,10 @@ scheme, up to `2 * UNSIG_BATCH - 1` work requests can be un-ACKed by the QP.
 With a QP of size `N`, `N - 1` work requests are allowed to be un-ACKed by the
 InfiniBand/RoCE specification.
 
+## Work in progress
+The benchmarks is being ported to use C++ and CMake. Some benchmarks will
+continue to use C (i.e., `libhrd`); others will move to C++ (i.e., `libhrd_cpp`).
+
 ## Contact
 Anuj Kalia (akalia@cs.cmu.edu)
 
@@ -136,6 +140,3 @@ Anuj Kalia (akalia@cs.cmu.edu)
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         See the License for the specific language governing permissions and
         limitations under the License.
-
-
-## TODOs
