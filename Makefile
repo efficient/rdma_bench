@@ -2,7 +2,8 @@ SUBDIRS = libhrd \
 	ws-sequencer atomics-sequencer ss-sequencer herd mica \
 	rw-tput-sender rw-tput-receiver rw-allsig \
 	ud-sender ud-receiver \
-	rw-allsig rw-postlist-latency
+	rc-swarm rw-allsig rw-postlist-latency \
+	ss-echo ws-echo ww-echo
 
 CLEANDIRS = $(SUBDIRS:%=clean-%)
 

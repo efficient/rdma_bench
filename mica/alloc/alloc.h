@@ -26,8 +26,6 @@
 #include <unistd.h>
 
 struct mica_alloc_item {
-  // uint32_t item_size;		/* XXX: isn't this breaking 8-byte alignment?
-  // */
   uint64_t item_size; /* XXX: isn't this breaking 8-byte alignment? */
   uint8_t data[0];
 };
