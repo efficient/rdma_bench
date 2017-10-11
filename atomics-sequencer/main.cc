@@ -281,7 +281,7 @@ void* run_client(thread_params_t* params) {
   return nullptr;
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   /* Check some macros  */

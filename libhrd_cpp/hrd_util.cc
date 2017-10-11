@@ -94,6 +94,7 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
         cb->resolve.dev_port_id = port_i;
         cb->resolve.ib_ctx = ctx;
         cb->resolve.port_lid = port_attr.lid;
+        return;
       }
 
       ports_to_discover--;
