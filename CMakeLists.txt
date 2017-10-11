@@ -78,9 +78,8 @@ set(SOURCES
   libhrd_cpp/hrd_util.cc)
 
 set(APP atomics-sequencer)
-
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/${APP})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/${APP})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/${APP})
-add_executable(${APP} ${APP}/main.cc ${SOURCES})
-target_link_libraries(${APP} ${GTEST_LIBRARIES} ${LIBRARIES})
+add_executable(main ${APP}/main.cc ${SOURCES})
+target_link_libraries(main ${GTEST_LIBRARIES} ${LIBRARIES})

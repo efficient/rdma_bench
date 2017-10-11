@@ -20,7 +20,7 @@ sleep 1
 blue "Starting $num_server_threads server threads"
 
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./atomics-sequencer \
+	numactl --cpunodebind=0 --membind=0 ./main \
 	--base_port_index 0 \
 	--num_server_ports 2 \
-	--is_client 0
+	--is_client false

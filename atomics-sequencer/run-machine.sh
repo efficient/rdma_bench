@@ -22,11 +22,11 @@ num_threads=8			# Threads per client machine
 blue "Running $num_threads client threads"
 
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./atomics-sequencer \
+	numactl --cpunodebind=0 --membind=0 ./main \
 	--num_threads $num_threads \
 	--base_port_index 0 \
 	--num_server_ports 2 \
 	--num_client_ports 2 \
 	--postlist 16 \
-	--is_client 1 \
+	--is_client true \
 	--machine_id $1
