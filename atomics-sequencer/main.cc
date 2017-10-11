@@ -1,6 +1,5 @@
 #include "main.h"
 #include <byteswap.h>
-#include <getopt.h>
 #include <gflags/gflags.h>
 #include <stdlib.h>
 #include <string.h>
