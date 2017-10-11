@@ -51,8 +51,7 @@ void hrd_ibv_devinfo(void) {
  * Fills its device id and device-local port id (1-based) into the supplied
  * control block.
  */
-struct ibv_device* hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb,
-                                          int port_index) {
+void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
   struct ibv_device** dev_list;
   int num_devices = 0;
 
@@ -89,19 +88,14 @@ struct ibv_device* hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb,
       }
 
       if (ports_to_discover == 0) {
-        printf("HRD: port index %d resolved to device %d, port %d\n",
+        printf("HRD: port index %zu resolved to device %d, port %d\n",
                port_index, dev_i, port_i);
 
         /* Fill the device ID and device-local port ID */
-        cb->device_id = dev_i;
-        cb->dev_port_id = port_i;
-
-        if (ibv_close_device(ctx)) {
-          fprintf(stderr, "HRD: Couldn't release context\n");
-          exit(-1);
-        }
-
-        return dev_list[cb->device_id];
+        cb->resolve.device_id = dev_i;
+        cb->resolve.dev_port_id = port_i;
+        cb->resolve.ib_ctx = ctx;
+        cb->resolve.port_lid = port_attr.lid;
       }
 
       ports_to_discover--;
@@ -119,7 +113,7 @@ struct ibv_device* hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb,
 }
 
 /* Allocate SHM with @shm_key, and save the shmid into @shm_id_ret */
-uint8_t* hrd_malloc_socket(int shm_key, size_t size, int socket_id) {
+uint8_t* hrd_malloc_socket(int shm_key, size_t size, size_t socket_id) {
   int shmid = shmget(shm_key, size, IPC_CREAT | IPC_EXCL | 0666 | SHM_HUGETLB);
   if (shmid == -1) {
     switch (errno) {
@@ -162,7 +156,7 @@ uint8_t* hrd_malloc_socket(int shm_key, size_t size, int socket_id) {
   }
 
   /* Bind the buffer to this socket */
-  const unsigned long nodemask = (1 << socket_id);
+  const unsigned long nodemask = (1ull << socket_id);
   int ret = mbind(buf, size, MPOL_BIND, &nodemask, 32, 0);
   if (ret != 0) {
     printf("HRD: SHM malloc error. mbind() failed for key %d\n", shm_key);

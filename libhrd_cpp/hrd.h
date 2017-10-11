@@ -89,11 +89,16 @@ struct hrd_ctrl_blk_t {
   size_t local_hid; /* Local ID on the machine this process runs on */
 
   /* Info about the device/port to use for this control block */
-  struct ibv_context* ctx;
   size_t port_index;   /* User-supplied. 0-based across all devices */
-  int device_id;       /* Resovled by libhrd from @port_index */
-  uint8_t dev_port_id; /* 1-based within dev @device_id. Resolved by libhrd */
   size_t numa_node_id; /* NUMA node id */
+
+  /// InfiniBand info resolved from \p phy_port, must be filled by constructor.
+  struct {
+    int device_id;               ///< Device index in list of verbs devices
+    struct ibv_context* ib_ctx;  ///< The verbs device context
+    uint8_t dev_port_id;         ///< 1-based port ID in device. 0 is invalid.
+    uint16_t port_lid;           ///< LID of phy_port. 0 is invalid.
+  } resolve;
 
   struct ibv_pd* pd; /* A protection domain for this control block */
 
@@ -129,7 +134,7 @@ struct hrd_conn_config_t {
 
 struct hrd_dgram_config_t {
   size_t num_qps;
-  void* prealloc_buf;
+  volatile uint8_t* prealloc_buf;
   size_t buf_size;
   int buf_shm_key;
 };
@@ -145,12 +150,7 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb);
 /* Debug */
 void hrd_ibv_devinfo(void);
 
-/* RDMA resolution functions */
-struct ibv_device* hrd_resolve_port_index(hrd_ctrl_blk_t* cb,
-                                          size_t port_index);
-
-uint16_t hrd_get_local_lid(struct ibv_context* ctx, size_t port_id);
-
+void hrd_resolve_port_index(hrd_ctrl_blk_t* cb, size_t port_index);
 void hrd_create_conn_qps(hrd_ctrl_blk_t* cb);
 void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb);
 
@@ -232,7 +232,7 @@ static inline size_t hrd_get_cycles() {
 
 static inline int hrd_is_power_of_2(uint64_t n) { return n && !(n & (n - 1)); }
 
-uint8_t* hrd_malloc_socket(int shm_key, int size, int socket_id);
+uint8_t* hrd_malloc_socket(int shm_key, size_t size, size_t socket_id);
 int hrd_free(int shm_key, void* shm_buf);
 void hrd_red_printf(const char* format, ...);
 void hrd_get_formatted_time(char* timebuf);
