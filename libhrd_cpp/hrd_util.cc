@@ -1,7 +1,8 @@
+#include <stdexcept>
 #include "hrd.h"
 
 /* Every thread creates a TCP connection to the registry only once. */
-__thread memcached_st* memc = NULL;
+__thread memcached_st* memc = nullptr;
 
 /* Print information about all IB devices in the system */
 void hrd_ibv_devinfo(void) {
@@ -28,8 +29,8 @@ void hrd_ibv_devinfo(void) {
     printf("IB device %d:\n", dev_i);
     printf("    Name: %s\n", dev_list[dev_i]->name);
     printf("    Device name: %s\n", dev_list[dev_i]->dev_name);
-    printf("    GUID: %016llx\n",
-           (unsigned long long)ibv_get_device_guid(dev_list[dev_i]));
+    printf("    GUID: %zx\n",
+           static_cast<size_t>(ibv_get_device_guid(dev_list[dev_i])));
     printf("    Node type: %d (-1: UNKNOWN, 1: CA, 4: RNIC)\n",
            dev_list[dev_i]->node_type);
     printf("    Transport type: %d (-1: UNKNOWN, 0: IB, 1: IWARP)\n",
@@ -41,7 +42,7 @@ void hrd_ibv_devinfo(void) {
     printf("    max_mr: %d\n", device_attr.max_mr);
     printf("    max_pd: %d\n", device_attr.max_pd);
     printf("    max_ah: %d\n", device_attr.max_ah);
-    printf("    phys_port_cnt: %hu\n", device_attr.phys_port_cnt);
+    printf("    phys_port_cnt: %u\n", device_attr.phys_port_cnt);
   }
 }
 
@@ -50,23 +51,16 @@ void hrd_ibv_devinfo(void) {
  * Fills its device id and device-local port id (1-based) into the supplied
  * control block.
  */
-struct ibv_device* hrd_resolve_port_index(struct hrd_ctrl_blk* cb,
-                                          int port_index) {
+void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
   struct ibv_device** dev_list;
   int num_devices = 0;
-
-  assert(port_index >= 0);
-
-  cb->device_id = -1;
-  cb->dev_port_id = -1;
 
   dev_list = ibv_get_device_list(&num_devices);
   CPE(!dev_list, "HRD: Failed to get IB devices list", 0);
 
   int ports_to_discover = port_index;
-  int dev_i;
 
-  for (dev_i = 0; dev_i < num_devices; dev_i++) {
+  for (int dev_i = 0; dev_i < num_devices; dev_i++) {
     struct ibv_context* ctx = ibv_open_device(dev_list[dev_i]);
     CPE(!ctx, "HRD: Couldn't open device", 0);
 
@@ -88,30 +82,19 @@ struct ibv_device* hrd_resolve_port_index(struct hrd_ctrl_blk* cb,
 
       if (port_attr.phys_state != IBV_PORT_ACTIVE &&
           port_attr.phys_state != IBV_PORT_ACTIVE_DEFER) {
-#ifndef __cplusplus
-        printf("HRD: Ignoring port %d of device %d. State is %s\n", port_i,
-               dev_i, ibv_port_state_str(port_attr.phys_state));
-#else
-        printf("HRD: Ignoring port %d of device %d. State is %s\n", port_i,
-               dev_i, ibv_port_state_str((ibv_port_state)port_attr.phys_state));
-#endif
         continue;
       }
 
       if (ports_to_discover == 0) {
-        printf("HRD: port index %d resolved to device %d, port %d\n",
+        printf("HRD: port index %zu resolved to device %d, port %d\n",
                port_index, dev_i, port_i);
 
         /* Fill the device ID and device-local port ID */
-        cb->device_id = dev_i;
-        cb->dev_port_id = port_i;
-
-        if (ibv_close_device(ctx)) {
-          fprintf(stderr, "HRD: Couldn't release context\n");
-          assert(false);
-        }
-
-        return dev_list[cb->device_id];
+        cb->resolve.device_id = dev_i;
+        cb->resolve.dev_port_id = port_i;
+        cb->resolve.ib_ctx = ctx;
+        cb->resolve.port_lid = port_attr.lid;
+        return;
       }
 
       ports_to_discover--;
@@ -119,18 +102,17 @@ struct ibv_device* hrd_resolve_port_index(struct hrd_ctrl_blk* cb,
 
     if (ibv_close_device(ctx)) {
       fprintf(stderr, "HRD: Couldn't release context\n");
-      assert(false);
+      exit(-1);
     }
   }
 
   /* If we come here, port resolution failed */
-  assert(cb->device_id == -1 && cb->dev_port_id == -1);
-  fprintf(stderr, "HRD: Invalid port index %d. Exiting.\n", port_index);
-  exit(-1);
+  throw std::runtime_error("Failed to resolve IB port index " +
+                           std::to_string(port_index));
 }
 
 /* Allocate SHM with @shm_key, and save the shmid into @shm_id_ret */
-void* hrd_malloc_socket(int shm_key, int size, int socket_id) {
+uint8_t* hrd_malloc_socket(int shm_key, size_t size, size_t socket_id) {
   int shmid = shmget(shm_key, size, IPC_CREAT | IPC_EXCL | 0666 | SHM_HUGETLB);
   if (shmid == -1) {
     switch (errno) {
@@ -166,14 +148,14 @@ void* hrd_malloc_socket(int shm_key, int size, int socket_id) {
     assert(false);
   }
 
-  void* buf = shmat(shmid, NULL, 0);
-  if (buf == NULL) {
+  uint8_t* buf = static_cast<uint8_t*>(shmat(shmid, nullptr, 0));
+  if (buf == nullptr) {
     printf("HRD: SHM malloc error: shmat() failed for key %d\n", shm_key);
     exit(-1);
   }
 
   /* Bind the buffer to this socket */
-  const unsigned long nodemask = (1 << socket_id);
+  const unsigned long nodemask = (1ull << socket_id);
   int ret = mbind(buf, size, MPOL_BIND, &nodemask, 32, 0);
   if (ret != 0) {
     printf("HRD: SHM malloc error. mbind() failed for key %d\n", shm_key);
@@ -206,7 +188,7 @@ int hrd_free(int shm_key, void* shm_buf) {
     return -1;
   }
 
-  ret = shmctl(shmid, IPC_RMID, NULL);
+  ret = shmctl(shmid, IPC_RMID, nullptr);
   if (ret != 0) {
     printf("HRD: SHM free error: shmctl() failed for key %d\n", shm_key);
     exit(-1);
@@ -254,18 +236,16 @@ void hrd_red_printf(const char* format, ...) {
   va_end(args);
 }
 
-void hrd_nano_sleep(int ns) {
-  long long start = hrd_get_cycles();
-  long long end = start;
-  int upp = (int)(2.1 * ns);
-  while (end - start < upp) {
-    end = hrd_get_cycles();
-  }
+void hrd_nano_sleep(size_t ns) {
+  size_t start = hrd_get_cycles();
+  size_t end = start;
+  size_t upp = (2.1 * ns);
+  while (end - start < upp) end = hrd_get_cycles();
 }
 
 /* Get the LID of a port on the device specified by @ctx */
 uint16_t hrd_get_local_lid(struct ibv_context* ctx, int dev_port_id) {
-  assert(ctx != NULL && dev_port_id >= 1);
+  assert(ctx != nullptr && dev_port_id >= 1);
 
   struct ibv_port_attr attr;
   if (ibv_query_port(ctx, dev_port_id, &attr)) {
@@ -280,7 +260,7 @@ uint16_t hrd_get_local_lid(struct ibv_context* ctx, int dev_port_id) {
 /* Return the environment variable @name if it is set. Exit if not. */
 char* hrd_getenv(const char* name) {
   char* env = getenv(name);
-  if (env == NULL) {
+  if (env == nullptr) {
     fprintf(stderr, "Environment variable %s not set\n", name);
     assert(false);
   }
@@ -290,7 +270,7 @@ char* hrd_getenv(const char* name) {
 
 /* Record the current time in @timebuf. @timebuf must have at least 50 bytes. */
 void hrd_get_formatted_time(char* timebuf) {
-  assert(timebuf != NULL);
+  assert(timebuf != nullptr);
   time_t timer;
   struct tm* tm_info;
 
@@ -301,11 +281,11 @@ void hrd_get_formatted_time(char* timebuf) {
 }
 
 memcached_st* hrd_create_memc() {
-  memcached_server_st* servers = NULL;
-  memcached_st* memc = memcached_create(NULL);
+  memcached_server_st* servers = nullptr;
+  memcached_st* memc = memcached_create(nullptr);
   memcached_return rc;
 
-  memc = memcached_create(NULL);
+  memc = memcached_create(nullptr);
   char* registry_ip = hrd_getenv("HRD_REGISTRY_IP");
 
   /* We run the memcached server on the default memcached port */
@@ -318,23 +298,24 @@ memcached_st* hrd_create_memc() {
 }
 
 void hrd_close_memcached() {
-  assert(memc != NULL);
+  assert(memc != nullptr);
   memcached_free(memc);
 }
 
 /*
  * Insert key -> value mapping into memcached running at HRD_REGISTRY_IP.
  */
-void hrd_publish(const char* key, void* value, int len) {
-  assert(key != NULL && value != NULL && len > 0);
+void hrd_publish(const char* key, void* value, size_t len) {
+  assert(key != nullptr && value != nullptr && len > 0);
   memcached_return rc;
 
-  if (memc == NULL) {
+  if (memc == nullptr) {
     memc = hrd_create_memc();
   }
 
-  rc = memcached_set(memc, key, strlen(key), (const char*)value, len, (time_t)0,
-                     (uint32_t)0);
+  rc = memcached_set(memc, key, strlen(key),
+                     reinterpret_cast<const char*>(value), len,
+                     static_cast<time_t>(0), static_cast<uint32_t>(0));
   if (rc != MEMCACHED_SUCCESS) {
     char* registry_ip = hrd_getenv("HRD_REGISTRY_IP");
     fprintf(stderr,
@@ -347,7 +328,7 @@ void hrd_publish(const char* key, void* value, int len) {
 
 /*
  * Get the value associated with "key" into "value", and return the length
- * of the value. If the key is not found, return NULL and len -1. For all
+ * of the value. If the key is not found, return nullptr and len -1. For all
  * other errors, terminate.
  *
  * This function sometimes gets called in a polling loop - ensure that there
@@ -356,8 +337,8 @@ void hrd_publish(const char* key, void* value, int len) {
  * environment.
  */
 int hrd_get_published(const char* key, void** value) {
-  assert(key != NULL);
-  if (memc == NULL) {
+  assert(key != nullptr);
+  if (memc == nullptr) {
     memc = hrd_create_memc();
   }
 
@@ -368,9 +349,9 @@ int hrd_get_published(const char* key, void** value) {
   *value = memcached_get(memc, key, strlen(key), &value_length, &flags, &rc);
 
   if (rc == MEMCACHED_SUCCESS) {
-    return (int)value_length;
+    return static_cast<int>(value_length);
   } else if (rc == MEMCACHED_NOTFOUND) {
-    assert(*value == NULL);
+    assert(*value == nullptr);
     return -1;
   } else {
     char* registry_ip = hrd_getenv("HRD_REGISTRY_IP");
@@ -395,7 +376,7 @@ int hrd_get_published(const char* key, void** value) {
  */
 void hrd_publish_ready(const char* qp_name) {
   char value[HRD_QP_NAME_SIZE];
-  assert(qp_name != NULL && strlen(qp_name) < HRD_QP_NAME_SIZE);
+  assert(qp_name != nullptr && strlen(qp_name) < HRD_QP_NAME_SIZE);
 
   char new_name[2 * HRD_QP_NAME_SIZE];
   sprintf(new_name, "%s", HRD_RESERVED_NAME_PREFIX);
@@ -420,7 +401,7 @@ void hrd_wait_till_ready(const char* qp_name) {
 
   int tries = 0;
   while (true) {
-    int ret = hrd_get_published(new_name, (void**)&value);
+    int ret = hrd_get_published(new_name, reinterpret_cast<void**>(&value));
     tries++;
     if (ret > 0) {
       if (strcmp(value, exp_value) == 0) {
@@ -437,7 +418,8 @@ void hrd_wait_till_ready(const char* qp_name) {
   }
 }
 
-void hrd_post_dgram_recv(struct ibv_qp* qp, void* buf_addr, int len, int lkey) {
+void hrd_post_dgram_recv(struct ibv_qp* qp, void* buf_addr, size_t len,
+                         uint32_t lkey) {
   int ret;
   struct ibv_recv_wr* bad_wr;
 
@@ -450,8 +432,7 @@ void hrd_post_dgram_recv(struct ibv_qp* qp, void* buf_addr, int len, int lkey) {
   memset(&recv_wr, 0, sizeof(struct ibv_recv_wr));
   recv_wr.sg_list = &list;
   recv_wr.num_sge = 1;
-
-  recv_wr.sg_list->addr = (uintptr_t)buf_addr;
+  recv_wr.sg_list->addr = reinterpret_cast<uint64_t>(buf_addr);
 
   ret = ibv_post_recv(qp, &recv_wr, &bad_wr);
   if (ret) {

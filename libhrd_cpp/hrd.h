@@ -73,7 +73,7 @@
 #define is_aligned(x, A) (((uint64_t)x) % A == 0)
 
 /* Registry info about a QP */
-struct hrd_qp_attr {
+struct hrd_qp_attr_t {
   char name[HRD_QP_NAME_SIZE];
 
   /* Info about the RDMA buffer associated with this QP */
@@ -81,77 +81,91 @@ struct hrd_qp_attr {
   uint32_t buf_size;
   uint32_t rkey;
 
-  int lid;
-  int qpn;
+  uint16_t lid;
+  uint32_t qpn;
 };
 
-struct hrd_ctrl_blk {
-  int local_hid; /* Local ID on the machine this process runs on */
+struct hrd_ctrl_blk_t {
+  size_t local_hid; /* Local ID on the machine this process runs on */
 
   /* Info about the device/port to use for this control block */
-  struct ibv_context* ctx;
-  int port_index;   /* User-supplied. 0-based across all devices */
-  int device_id;    /* Resovled by libhrd from @port_index */
-  int dev_port_id;  /* 1-based within dev @device_id. Resolved by libhrd */
-  int numa_node_id; /* NUMA node id */
+  size_t port_index;   /* User-supplied. 0-based across all devices */
+  size_t numa_node_id; /* NUMA node id */
+
+  /// InfiniBand info resolved from \p phy_port, must be filled by constructor.
+  struct {
+    int device_id;               ///< Device index in list of verbs devices
+    struct ibv_context* ib_ctx;  ///< The verbs device context
+    uint8_t dev_port_id;         ///< 1-based port ID in device. 0 is invalid.
+    uint16_t port_lid;           ///< LID of phy_port. 0 is invalid.
+  } resolve;
 
   struct ibv_pd* pd; /* A protection domain for this control block */
 
   /* Connected QPs */
-  int use_uc;
-  int num_conn_qps;
+  bool use_uc;
+  size_t num_conn_qps;
   struct ibv_qp** conn_qp;
   struct ibv_cq** conn_cq;
   volatile uint8_t* conn_buf; /* A buffer for RDMA over RC/UC QPs */
-  int conn_buf_size;
+  size_t conn_buf_size;
   int conn_buf_shm_key;
   struct ibv_mr* conn_buf_mr;
 
   /* Datagram QPs */
-  int num_dgram_qps;
+  size_t num_dgram_qps;
   struct ibv_qp** dgram_qp;
   struct ibv_cq **dgram_send_cq, **dgram_recv_cq;
   volatile uint8_t* dgram_buf; /* A buffer for RECVs on dgram QPs */
-  int dgram_buf_size;
+  size_t dgram_buf_size;
   int dgram_buf_shm_key;
   struct ibv_mr* dgram_buf_mr;
 
   uint8_t pad[64];
 };
 
-/* Major initialzation functions */
-struct hrd_ctrl_blk* hrd_ctrl_blk_init(
-    int local_hid, int port_index, int numa_node_id, int num_conn_qps,
-    int use_uc, volatile void* prealloc_conn_buf, int conn_buf_size,
-    int conn_buf_shm_key, volatile void* prealloc_dgram_buf, int num_dgram_qps,
-    int dgram_buf_size, int dgram_buf_shm_key);
+struct hrd_conn_config_t {
+  size_t num_qps;
+  bool use_uc;
+  volatile uint8_t* prealloc_buf;
+  size_t buf_size;
+  int buf_shm_key;
+};
 
-int hrd_ctrl_blk_destroy(struct hrd_ctrl_blk* cb);
+struct hrd_dgram_config_t {
+  size_t num_qps;
+  volatile uint8_t* prealloc_buf;
+  size_t buf_size;
+  int buf_shm_key;
+};
+
+/* Major initialzation functions */
+hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
+                                  size_t numa_node_id,
+                                  hrd_conn_config_t* conn_config,
+                                  hrd_dgram_config_t* dgram_config);
+
+int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb);
 
 /* Debug */
 void hrd_ibv_devinfo(void);
 
-/* RDMA resolution functions */
-struct ibv_device* hrd_resolve_port_index(struct hrd_ctrl_blk* cb,
-                                          int port_index);
+void hrd_resolve_port_index(hrd_ctrl_blk_t* cb, size_t port_index);
+void hrd_create_conn_qps(hrd_ctrl_blk_t* cb);
+void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb);
 
-uint16_t hrd_get_local_lid(struct ibv_context* ctx, int port_id);
-
-void hrd_create_conn_qps(struct hrd_ctrl_blk* cb);
-void hrd_create_dgram_qps(struct hrd_ctrl_blk* cb);
-
-void hrd_connect_qp(struct hrd_ctrl_blk* cb, int conn_qp_idx,
-                    struct hrd_qp_attr* remote_qp_attr);
+void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t conn_qp_idx,
+                    hrd_qp_attr_t* remote_qp_attr);
 
 /* Post 1 RECV for this queue pair for this buffer. Low performance. */
-void hrd_post_dgram_recv(struct ibv_qp* qp, void* buf_addr, int len, int lkey);
+void hrd_post_dgram_recv(struct ibv_qp* qp, void* buf_addr, size_t len,
+                         uint32_t lkey);
 
 /* Fill @wc with @num_comps comps from this @cq. Exit on error. */
 static inline void hrd_poll_cq(struct ibv_cq* cq, int num_comps,
                                struct ibv_wc* wc) {
   int comps = 0;
-
-  while (comps < num_comps) {
+  while (comps < static_cast<int>(num_comps)) {
     int new_comps = ibv_poll_cq(cq, num_comps - comps, &wc[comps]);
     if (new_comps != 0) {
       /* Ideally, we should check from comps -> new_comps - 1 */
@@ -187,16 +201,16 @@ static inline int hrd_poll_cq_ret(struct ibv_cq* cq, int num_comps,
 }
 
 /* Registry functions */
-void hrd_publish(const char* key, void* value, int len);
+void hrd_publish(const char* key, void* value, size_t len);
 int hrd_get_published(const char* key, void** value);
 
 /* Publish the nth connected queue pair from this cb with this name */
-void hrd_publish_conn_qp(struct hrd_ctrl_blk* cb, int n, const char* qp_name);
+void hrd_publish_conn_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name);
 
 /* Publish the nth datagram queue pair from this cb with this name */
-void hrd_publish_dgram_qp(struct hrd_ctrl_blk* cb, int n, const char* qp_name);
+void hrd_publish_dgram_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name);
 
-struct hrd_qp_attr* hrd_get_published_qp(const char* qp_name);
+struct hrd_qp_attr_t* hrd_get_published_qp(const char* qp_name);
 
 void hrd_publish_ready(const char* qp_name);
 void hrd_wait_till_ready(const char* qp_name);
@@ -206,25 +220,23 @@ void hrd_close_memcached();
 /* Utility functions */
 static inline uint32_t hrd_fastrand(uint64_t* seed) {
   *seed = *seed * 1103515245 + 12345;
-  return (uint32_t)(*seed >> 32);
+  return static_cast<uint32_t>((*seed) >> 32);
 }
 
-static inline long long hrd_get_cycles() {
-  unsigned low, high;
-  unsigned long long val;
-  asm volatile("rdtsc" : "=a"(low), "=d"(high));
-  val = high;
-  val = (val << 32) | low;
-  return val;
+static inline size_t hrd_get_cycles() {
+  uint64_t rax;
+  uint64_t rdx;
+  asm volatile("rdtsc" : "=a"(rax), "=d"(rdx));
+  return static_cast<size_t>((rdx << 32) | rax);
 }
 
 static inline int hrd_is_power_of_2(uint64_t n) { return n && !(n & (n - 1)); }
 
-void* hrd_malloc_socket(int shm_key, int size, int socket_id);
+uint8_t* hrd_malloc_socket(int shm_key, size_t size, size_t socket_id);
 int hrd_free(int shm_key, void* shm_buf);
 void hrd_red_printf(const char* format, ...);
 void hrd_get_formatted_time(char* timebuf);
-void hrd_nano_sleep(int ns);
+void hrd_nano_sleep(size_t ns);
 char* hrd_getenv(const char* name);
 
 #endif /* HRD_H */

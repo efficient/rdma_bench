@@ -1,18 +1,11 @@
-# A function to echo in blue color
-function blue() {
-	es=`tput setaf 4`
-	ee=`tput sgr0`
-	echo "${es}$1${ee}"
-}
+#!/usr/bin/env bash
+source $(dirname $0)/../scripts/utils.sh
+source $(dirname $0)/../scripts/mlx_env.sh
+export HRD_REGISTRY_IP="fawn-pluto0"
 
-export HRD_REGISTRY_IP="128.110.96.101"
-export MLX5_SINGLE_THREADED=1
+drop_shm
 
-blue "Removing hugepages"
-shm-rm.sh 1>/dev/null 2>/dev/null
-
-num_server_threads=16
-: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
+num_server_threads=32
 
 blue "Reset server QP registry"
 sudo killall memcached
@@ -21,9 +14,20 @@ sleep 1
 
 blue "Starting $num_server_threads server threads"
 
-sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
-	--num-threads $num_server_threads \
-	--dual-port 0 \
-	--use-uc 0 \
-	--is-client 0 &
+flags="
+	--num_threads $num_server_threads \
+	--dual_port 1 \
+  --use_uc 1
+"
+
+# Check for non-gdb mode
+if [ "$#" -eq 0 ]; then
+  sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
+    numactl --cpunodebind=0 --membind=0 ./main $flags
+fi
+
+# Check for gdb mode
+if [ "$#" -eq 1 ]; then
+  sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
+    gdb -ex run --args ./main $flags
+fi

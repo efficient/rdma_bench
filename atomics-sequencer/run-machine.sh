@@ -1,33 +1,44 @@
-# A function to echo in blue color
-function blue() {
-	es=`tput setaf 4`
-	ee=`tput sgr0`
-	echo "${es}$1${ee}"
-}
+#!/usr/bin/env bash
+source $(dirname $0)/../scripts/utils.sh
+source $(dirname $0)/../scripts/mlx_env.sh
+export HRD_REGISTRY_IP="fawn-pluto0"
 
-export HRD_REGISTRY_IP="10.113.1.47"
+drop_shm
 
-if [ "$#" -ne 1 ]; then
-    blue "Illegal number of parameters"
-	blue "Usage: ./run-machine.sh <machine_number>"
+num_threads=8			# Threads per client machine
+blue "Running $num_threads client threads"
+
+# Check number of arguments
+if [ "$#" -gt 2 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
 	exit
 fi
 
-blue "Removing hugepages"
-shm-rm.sh 1>/dev/null 2>/dev/null
+if [ "$#" -eq 0 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
+	exit
+fi
 
-num_threads=8			# Threads per client machine
-: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
-
-blue "Running $num_threads client threads"
-
-sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
-	--num-threads $num_threads \
-	--base-port-index 0 \
-	--num-server-ports 2 \
-	--num-client-ports 2 \
-	--appnet 0 \
+flags="\
+  --num_threads $num_threads \
+	--base_port_index 0 \
+	--num_server_ports 2 \
+	--num_client_ports 2 \
 	--postlist 16 \
-	--is-client 1 \
-	--machine-id $1
+	--is_client \
+	--machine_id $1
+"
+
+# Check for non-gdb mode
+if [ "$#" -eq 1 ]; then
+  sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
+    numactl --cpunodebind=0 --membind=0 ./main $flags
+fi
+
+# Check for gdb mode
+if [ "$#" -eq 2 ]; then
+  sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
+    gdb -ex run --args ./main $flags
+fi

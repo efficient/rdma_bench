@@ -1,16 +1,14 @@
 #include "hrd.h"
 
 /*
- * If @prealloc_conn_buf != NULL, @conn_buf_size is the size of the preallocated
- * buffer. If @prealloc_conn_buf == NULL, @conn_buf_size is the size of the
- * new buffer to create.
+ * If @prealloc_conn_buf != nullptr, @conn_buf_size is the size of the
+ * preallocated buffer. If @prealloc_conn_buf == nullptr, @conn_buf_size is the
+ * size of the new buffer to create.
  */
-struct hrd_ctrl_blk* hrd_ctrl_blk_init(
-    int local_hid, int port_index,
-    int numa_node_id, /* -1 means don't use hugepages */
-    int num_conn_qps, int use_uc, volatile void* prealloc_conn_buf,
-    int conn_buf_size, int conn_buf_shm_key, volatile void* prealloc_dgram_buf,
-    int num_dgram_qps, int dgram_buf_size, int dgram_buf_shm_key) {
+struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
+                                         size_t numa_node_id,
+                                         hrd_conn_config_t* conn_config,
+                                         hrd_dgram_config_t* dgram_config) {
 #if HRD_CONNECT_IB_ATOMICS == 1
   hrd_red_printf(
       "HRD: Connect-IB atomics enabled. This QP setup has not "
@@ -18,69 +16,70 @@ struct hrd_ctrl_blk* hrd_ctrl_blk_init(
   sleep(1);
 #endif
 
-  hrd_red_printf(
-      "HRD: creating control block %d: port %d, socket %d, "
-      "conn qps %d, UC %d, conn buf %d bytes (key %d), "
-      "dgram qps %d, dgram buf %.3f MB (key %d)\n",
-      local_hid, port_index, numa_node_id, num_conn_qps, use_uc, conn_buf_size,
-      conn_buf_shm_key, num_dgram_qps, (double)dgram_buf_size / M_1,
-      dgram_buf_shm_key);
+  hrd_red_printf("HRD: creating control block %zu: port %zu, socket %zu.\n",
+                 local_hid, port_index, numa_node_id);
+
+  if (conn_config != nullptr) {
+    hrd_red_printf(
+        "HRD: control block %zu: "
+        "conn qps %zu UC %d, conn buf %zu bytes (key %d).\n",
+        local_hid, conn_config->num_qps, conn_config->use_uc,
+        conn_config->buf_size, conn_config->buf_shm_key);
+  }
+
+  if (dgram_config != nullptr) {
+    hrd_red_printf(
+        "HRD: control block %zu: "
+        "dgram qps %zu, dgram buf %.3f MB (key %d)\n",
+        local_hid, dgram_config->num_qps, dgram_config->buf_size / M_1 * 1.0,
+        dgram_config->buf_shm_key);
+  }
 
   /*
    * Check arguments for sanity.
    * @local_hid can be anything: it's just control block identifier that is
    * useful in printing debug info.
    */
-  assert(port_index >= 0 && port_index <= 16);
-  assert(numa_node_id >= -1 && numa_node_id <= 8);
-  assert(num_conn_qps >= 0);
-  assert(use_uc == 0 || use_uc == 1);
-  assert(conn_buf_size >= 0 && conn_buf_size <= M_1024);
+  assert(port_index <= 16);
+  assert(numa_node_id <= 8);
 
-  /* If there is no preallocated buffer, shm key can be =/>/< 0 */
-  if (prealloc_conn_buf != NULL) {
-    assert(conn_buf_shm_key == -1);
-  }
-  if (prealloc_dgram_buf != NULL) {
-    assert(dgram_buf_shm_key == -1);
-  }
-  assert(num_dgram_qps >= 0 && num_dgram_qps <= M_2);
-  assert(dgram_buf_size >= 0 && dgram_buf_size <= M_1024);
-
-  if (num_conn_qps == 0 && num_dgram_qps == 0) {
-    hrd_red_printf(
-        "HRD: Control block initialization without QPs. Are you"
-        " sure you want to do this?\n");
-    assert(false);
-  }
-
-  struct hrd_ctrl_blk* cb =
-      (struct hrd_ctrl_blk*)malloc(sizeof(struct hrd_ctrl_blk));
-  memset(cb, 0, sizeof(struct hrd_ctrl_blk));
+  auto* cb = new hrd_ctrl_blk_t();
+  memset(cb, 0, sizeof(hrd_ctrl_blk_t));
 
   /* Fill in the control block */
   cb->local_hid = local_hid;
   cb->port_index = port_index;
   cb->numa_node_id = numa_node_id;
-  cb->use_uc = use_uc;
 
-  cb->num_conn_qps = num_conn_qps;
-  cb->conn_buf_size = conn_buf_size;
-  cb->conn_buf_shm_key = conn_buf_shm_key;
+  // Connected QPs
+  if (conn_config != nullptr) {
+    cb->num_conn_qps = conn_config->num_qps;
+    cb->use_uc = conn_config->use_uc;
+    cb->conn_buf_size = conn_config->buf_size;
+    cb->conn_buf_shm_key = conn_config->buf_shm_key;
 
-  cb->num_dgram_qps = num_dgram_qps;
-  cb->dgram_buf_size = dgram_buf_size;
-  cb->dgram_buf_shm_key = dgram_buf_shm_key;
+    assert(cb->conn_buf_size <= M_1024);
+    if (conn_config->prealloc_buf != nullptr) {
+      assert(cb->conn_buf_shm_key == -1);
+    }
+  }
 
-  /* Get the device to use. This fills in cb->device_id and cb->dev_port_id */
-  struct ibv_device* ib_dev = hrd_resolve_port_index(cb, port_index);
-  CPE(!ib_dev, "HRD: IB device not found", 0);
+  // Datagram QPs
+  if (dgram_config != nullptr) {
+    cb->num_dgram_qps = dgram_config->num_qps;
+    cb->dgram_buf_size = dgram_config->buf_size;
+    cb->dgram_buf_shm_key = dgram_config->buf_shm_key;
 
-  /* Use a single device context and PD for all QPs */
-  cb->ctx = ibv_open_device(ib_dev);
-  CPE(!cb->ctx, "HRD: Couldn't get context", 0);
+    assert(cb->dgram_buf_size <= M_1024);
+    if (dgram_config->prealloc_buf != nullptr) {
+      assert(cb->dgram_buf_shm_key == -1);
+    }
+  }
 
-  cb->pd = ibv_alloc_pd(cb->ctx);
+  // Resolve the port into cb->resolve
+  hrd_resolve_port_index(cb, port_index);
+
+  cb->pd = ibv_alloc_pd(cb->resolve.ib_ctx);
   CPE(!cb->pd, "HRD: Couldn't allocate PD", 0);
 
   int ib_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_READ |
@@ -90,49 +89,42 @@ struct hrd_ctrl_blk* hrd_ctrl_blk_init(
    * Create datagram QPs and transition them RTS.
    * Create and register datagram RDMA buffer.
    */
-  if (num_dgram_qps >= 1) {
-    cb->dgram_qp =
-        (struct ibv_qp**)malloc(num_dgram_qps * sizeof(struct ibv_qp*));
-    cb->dgram_send_cq =
-        (struct ibv_cq**)malloc(num_dgram_qps * sizeof(struct ibv_cq*));
-    cb->dgram_recv_cq =
-        (struct ibv_cq**)malloc(num_dgram_qps * sizeof(struct ibv_cq*));
-
-    assert(cb->dgram_qp != NULL && cb->dgram_send_cq != NULL &&
-           cb->dgram_recv_cq != NULL);
+  if (cb->num_dgram_qps >= 1) {
+    cb->dgram_qp = new ibv_qp*[cb->num_dgram_qps];
+    cb->dgram_send_cq = new ibv_cq*[cb->num_dgram_qps];
+    cb->dgram_recv_cq = new ibv_cq*[cb->num_dgram_qps];
 
     hrd_create_dgram_qps(cb);
 
-    if (prealloc_dgram_buf == NULL) {
+    if (dgram_config->prealloc_buf == nullptr) {
       /* Create and register dgram_buf - always make it multiple of 2 MB */
-      int reg_size = 0;
+      size_t reg_size = 0;
 
-      if (numa_node_id >= 0) {
+      if (numa_node_id <= 8) {
         /* Hugepages */
-        while (reg_size < dgram_buf_size) {
-          reg_size += M_2;
-        }
+        while (reg_size < cb->dgram_buf_size) reg_size += M_2;
 
         /* SHM key 0 is hard to free later */
-        assert(dgram_buf_shm_key >= 1 && dgram_buf_shm_key <= 128);
-        cb->dgram_buf = (volatile uint8_t*)hrd_malloc_socket(
-            dgram_buf_shm_key, reg_size, numa_node_id);
+        assert(cb->dgram_buf_shm_key >= 1 && cb->dgram_buf_shm_key <= 128);
+        cb->dgram_buf = reinterpret_cast<volatile uint8_t*>(
+            hrd_malloc_socket(cb->dgram_buf_shm_key, reg_size, numa_node_id));
       } else {
-        reg_size = dgram_buf_size;
-        cb->dgram_buf = (volatile uint8_t*)memalign(4096, reg_size);
+        reg_size = cb->dgram_buf_size;
+        cb->dgram_buf =
+            reinterpret_cast<volatile uint8_t*>(memalign(4096, reg_size));
       }
 
-      assert(cb->dgram_buf != NULL);
-      memset((char*)cb->dgram_buf, 0, reg_size);
+      assert(cb->dgram_buf != nullptr);
+      memset(const_cast<uint8_t*>(cb->dgram_buf), 0, reg_size);
 
-      cb->dgram_buf_mr =
-          ibv_reg_mr(cb->pd, (char*)cb->dgram_buf, reg_size, ib_flags);
-      assert(cb->dgram_buf_mr != NULL);
+      cb->dgram_buf_mr = ibv_reg_mr(cb->pd, const_cast<uint8_t*>(cb->dgram_buf),
+                                    reg_size, ib_flags);
+      assert(cb->dgram_buf_mr != nullptr);
     } else {
-      cb->dgram_buf = (volatile uint8_t*)prealloc_dgram_buf;
-      cb->dgram_buf_mr = ibv_reg_mr(cb->pd, (char*)cb->dgram_buf,
+      cb->dgram_buf = const_cast<volatile uint8_t*>(dgram_config->prealloc_buf);
+      cb->dgram_buf_mr = ibv_reg_mr(cb->pd, const_cast<uint8_t*>(cb->dgram_buf),
                                     cb->dgram_buf_size, ib_flags);
-      assert(cb->dgram_buf_mr != NULL);
+      assert(cb->dgram_buf_mr != nullptr);
     }
   }
 
@@ -140,45 +132,40 @@ struct hrd_ctrl_blk* hrd_ctrl_blk_init(
    * Create connected QPs and transition them to RTS.
    * Create and register connected QP RDMA buffer.
    */
-  if (num_conn_qps >= 1) {
-    cb->conn_qp =
-        (struct ibv_qp**)malloc(num_conn_qps * sizeof(struct ibv_qp*));
-    cb->conn_cq =
-        (struct ibv_cq**)malloc(num_conn_qps * sizeof(struct ibv_cq*));
-
-    assert(cb->conn_qp != NULL && cb->conn_cq != NULL);
+  if (cb->num_conn_qps >= 1) {
+    cb->conn_qp = new ibv_qp*[cb->num_conn_qps];
+    cb->conn_cq = new ibv_cq*[cb->num_conn_qps];
 
     hrd_create_conn_qps(cb);
 
-    if (prealloc_conn_buf == NULL) {
+    if (conn_config->prealloc_buf == nullptr) {
       /* Create and register conn_buf - always make it multiple of 2 MB*/
-      int reg_size = 0;
+      size_t reg_size = 0;
 
       /* If numa_node_id < 0, use standard heap memory */
-      if (numa_node_id >= 0) {
+      if (numa_node_id <= 8) {
         /* Hugepages */
-        while (reg_size < conn_buf_size) {
-          reg_size += M_2;
-        }
+        while (reg_size < cb->conn_buf_size) reg_size += M_2;
 
         /* SHM key 0 is hard to free later */
-        assert(conn_buf_shm_key >= 1 && conn_buf_shm_key <= 128);
-        cb->conn_buf = (volatile uint8_t*)hrd_malloc_socket(
-            conn_buf_shm_key, reg_size, numa_node_id);
+        assert(cb->conn_buf_shm_key >= 1 && cb->conn_buf_shm_key <= 128);
+        cb->conn_buf = reinterpret_cast<volatile uint8_t*>(
+            hrd_malloc_socket(cb->conn_buf_shm_key, reg_size, numa_node_id));
       } else {
-        reg_size = conn_buf_size;
-        cb->conn_buf = (volatile uint8_t*)memalign(4096, reg_size);
-        assert(cb->conn_buf != NULL);
+        reg_size = cb->conn_buf_size;
+        cb->conn_buf =
+            reinterpret_cast<volatile uint8_t*>(memalign(4096, reg_size));
+        assert(cb->conn_buf != nullptr);
       }
-      memset((char*)cb->conn_buf, 0, reg_size);
-      cb->conn_buf_mr =
-          ibv_reg_mr(cb->pd, (char*)cb->conn_buf, reg_size, ib_flags);
-      assert(cb->conn_buf_mr != NULL);
+      memset(const_cast<uint8_t*>(cb->conn_buf), 0, reg_size);
+      cb->conn_buf_mr = ibv_reg_mr(cb->pd, const_cast<uint8_t*>(cb->conn_buf),
+                                   reg_size, ib_flags);
+      assert(cb->conn_buf_mr != nullptr);
     } else {
-      cb->conn_buf = (volatile uint8_t*)prealloc_conn_buf;
-      cb->conn_buf_mr =
-          ibv_reg_mr(cb->pd, (char*)cb->conn_buf, cb->conn_buf_size, ib_flags);
-      assert(cb->conn_buf_mr != NULL);
+      cb->conn_buf = const_cast<volatile uint8_t*>(conn_config->prealloc_buf);
+      cb->conn_buf_mr = ibv_reg_mr(cb->pd, const_cast<uint8_t*>(cb->conn_buf),
+                                   cb->conn_buf_size, ib_flags);
+      assert(cb->conn_buf_mr != nullptr);
     }
   }
 
@@ -186,91 +173,91 @@ struct hrd_ctrl_blk* hrd_ctrl_blk_init(
 }
 
 /* Free up the resources taken by @cb. Return -1 if something fails, else 0. */
-int hrd_ctrl_blk_destroy(struct hrd_ctrl_blk* cb) {
-  int i;
+int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
   hrd_red_printf("HRD: Destroying control block %d\n", cb->local_hid);
 
   /* Destroy QPs and CQs. QPs must be destroyed before CQs. */
-  for (i = 0; i < cb->num_dgram_qps; i++) {
-    assert(cb->dgram_send_cq[i] != NULL && cb->dgram_recv_cq[i] != NULL);
-    assert(cb->dgram_qp[i] != NULL);
+  for (size_t i = 0; i < cb->num_dgram_qps; i++) {
+    assert(cb->dgram_send_cq[i] != nullptr && cb->dgram_recv_cq[i] != nullptr);
+    assert(cb->dgram_qp[i] != nullptr);
 
     if (ibv_destroy_qp(cb->dgram_qp[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy dgram QP %d\n", i);
+      fprintf(stderr, "HRD: Couldn't destroy dgram QP %zu\n", i);
       return -1;
     }
 
     if (ibv_destroy_cq(cb->dgram_send_cq[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy dgram SEND CQ %d\n", i);
+      fprintf(stderr, "HRD: Couldn't destroy dgram SEND CQ %zu\n", i);
       return -1;
     }
 
     if (ibv_destroy_cq(cb->dgram_recv_cq[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy dgram RECV CQ %d\n", i);
+      fprintf(stderr, "HRD: Couldn't destroy dgram RECV CQ %zu\n", i);
       return -1;
     }
   }
 
-  for (i = 0; i < cb->num_conn_qps; i++) {
-    assert(cb->conn_cq[i] != NULL && cb->conn_qp[i] != NULL);
+  for (size_t i = 0; i < cb->num_conn_qps; i++) {
+    assert(cb->conn_cq[i] != nullptr && cb->conn_qp[i] != nullptr);
 
     if (ibv_destroy_qp(cb->conn_qp[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy conn QP %d\n", i);
+      fprintf(stderr, "HRD: Couldn't destroy conn QP %zud\n", i);
       return -1;
     }
 
     if (ibv_destroy_cq(cb->conn_cq[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy conn CQ %d\n", i);
+      fprintf(stderr, "HRD: Couldn't destroy conn CQ %zud\n", i);
       return -1;
     }
   }
 
   /* Destroy memory regions */
   if (cb->num_dgram_qps > 0) {
-    assert(cb->dgram_buf_mr != NULL && cb->dgram_buf != NULL);
+    assert(cb->dgram_buf_mr != nullptr && cb->dgram_buf != nullptr);
     if (ibv_dereg_mr(cb->dgram_buf_mr)) {
-      fprintf(stderr, "HRD: Couldn't deregister dgram MR for cb %d\n",
+      fprintf(stderr, "HRD: Couldn't deregister dgram MR for cb %zu\n",
               cb->local_hid);
       return -1;
     }
 
-    if (cb->numa_node_id >= 0) {
-      if (hrd_free(cb->dgram_buf_shm_key, (void*)cb->dgram_buf)) {
-        fprintf(stderr, "HRD: Error freeing dgram hugepages for cb %d\n",
+    if (cb->numa_node_id <= 8) {
+      if (hrd_free(cb->dgram_buf_shm_key,
+                   const_cast<uint8_t*>(cb->dgram_buf))) {
+        fprintf(stderr, "HRD: Error freeing dgram hugepages for cb %zu.\n",
                 cb->local_hid);
       }
     } else {
-      free((void*)cb->dgram_buf);
+      free(const_cast<uint8_t*>(cb->dgram_buf));
     }
   }
 
   if (cb->num_conn_qps > 0) {
-    assert(cb->conn_buf_mr != NULL);
+    assert(cb->conn_buf_mr != nullptr);
     if (ibv_dereg_mr(cb->conn_buf_mr)) {
-      fprintf(stderr, "HRD: Couldn't deregister conn MR for cb %d\n",
+      fprintf(stderr, "HRD: Couldn't deregister conn MR for cb %zu\n",
               cb->local_hid);
       return -1;
     }
 
-    if (cb->numa_node_id >= 0) {
-      if (hrd_free(cb->conn_buf_shm_key, (void*)cb->conn_buf)) {
-        fprintf(stderr, "HRD: Error freeing conn hugepages for cb %d\n",
+    if (cb->numa_node_id <= 8) {
+      if (hrd_free(cb->conn_buf_shm_key, const_cast<uint8_t*>(cb->conn_buf))) {
+        fprintf(stderr, "HRD: Error freeing conn hugepages for cb %zu\n",
                 cb->local_hid);
       }
     } else {
-      free((void*)cb->conn_buf);
+      free(const_cast<uint8_t*>(cb->conn_buf));
     }
   }
 
   /* Destroy protection domain */
   if (ibv_dealloc_pd(cb->pd)) {
-    fprintf(stderr, "HRD: Couldn't dealloc PD for cb %d\n", cb->local_hid);
+    fprintf(stderr, "HRD: Couldn't dealloc PD for cb %zu\n", cb->local_hid);
     return -1;
   }
 
   /* Destroy device context */
-  if (ibv_close_device(cb->ctx)) {
-    fprintf(stderr, "Couldn't release context for cb %d\n", cb->local_hid);
+  if (ibv_close_device(cb->resolve.ib_ctx)) {
+    fprintf(stderr, "Couldn't release context for cb %zu\n", cb->local_hid);
     return -1;
   }
 
@@ -279,25 +266,26 @@ int hrd_ctrl_blk_destroy(struct hrd_ctrl_blk* cb) {
 }
 
 /* Create datagram QPs and transition them to RTS */
-void hrd_create_dgram_qps(struct hrd_ctrl_blk* cb) {
-  int i;
-  assert(cb->dgram_qp != NULL && cb->dgram_send_cq != NULL &&
-         cb->dgram_recv_cq != NULL && cb->pd != NULL && cb->ctx != NULL);
-  assert(cb->num_dgram_qps >= 1 && cb->dev_port_id >= 1);
+void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
+  assert(cb->dgram_qp != nullptr && cb->dgram_send_cq != nullptr &&
+         cb->dgram_recv_cq != nullptr && cb->pd != nullptr &&
+         cb->resolve.ib_ctx != nullptr);
+  assert(cb->num_dgram_qps >= 1 && cb->resolve.dev_port_id >= 1);
 
-  for (i = 0; i < cb->num_dgram_qps; i++) {
-    int recv_queue_depth = (i == 0) ? HRD_RQ_DEPTH : 1;
+  for (size_t i = 0; i < cb->num_dgram_qps; i++) {
+    size_t recv_queue_depth = (i == 0) ? HRD_RQ_DEPTH : 1;
 
-    cb->dgram_send_cq[i] = ibv_create_cq(cb->ctx, HRD_SQ_DEPTH, NULL, NULL, 0);
-    assert(cb->dgram_send_cq[i] != NULL);
+    cb->dgram_send_cq[i] =
+        ibv_create_cq(cb->resolve.ib_ctx, HRD_SQ_DEPTH, nullptr, nullptr, 0);
+    assert(cb->dgram_send_cq[i] != nullptr);
 
-    cb->dgram_recv_cq[i] =
-        ibv_create_cq(cb->ctx, recv_queue_depth, NULL, NULL, 0);
-    assert(cb->dgram_recv_cq[i] != NULL);
+    cb->dgram_recv_cq[i] = ibv_create_cq(cb->resolve.ib_ctx, recv_queue_depth,
+                                         nullptr, nullptr, 0);
+    assert(cb->dgram_recv_cq[i] != nullptr);
 
     /* Initialize creation attributes */
     struct ibv_qp_init_attr create_attr;
-    memset((void*)&create_attr, 0, sizeof(struct ibv_qp_init_attr));
+    memset(&create_attr, 0, sizeof(struct ibv_qp_init_attr));
     create_attr.send_cq = cb->dgram_send_cq[i];
     create_attr.recv_cq = cb->dgram_recv_cq[i];
     create_attr.qp_type = IBV_QPT_UD;
@@ -309,14 +297,14 @@ void hrd_create_dgram_qps(struct hrd_ctrl_blk* cb) {
     create_attr.cap.max_inline_data = HRD_MAX_INLINE;
 
     cb->dgram_qp[i] = ibv_create_qp(cb->pd, &create_attr);
-    assert(cb->dgram_qp[i] != NULL);
+    assert(cb->dgram_qp[i] != nullptr);
 
     /* INIT state */
     struct ibv_qp_attr init_attr;
-    memset((void*)&init_attr, 0, sizeof(struct ibv_qp_attr));
+    memset(&init_attr, 0, sizeof(struct ibv_qp_attr));
     init_attr.qp_state = IBV_QPS_INIT;
     init_attr.pkey_index = 0;
-    init_attr.port_num = cb->dev_port_id;
+    init_attr.port_num = cb->resolve.dev_port_id;
     init_attr.qkey = HRD_DEFAULT_QKEY;
 
     if (ibv_modify_qp(
@@ -328,7 +316,7 @@ void hrd_create_dgram_qps(struct hrd_ctrl_blk* cb) {
 
     /* RTR state */
     struct ibv_qp_attr rtr_attr;
-    memset((void*)&rtr_attr, 0, sizeof(struct ibv_qp_attr));
+    memset(&rtr_attr, 0, sizeof(struct ibv_qp_attr));
     rtr_attr.qp_state = IBV_QPS_RTR;
 
     if (ibv_modify_qp(cb->dgram_qp[i], &rtr_attr, IBV_QP_STATE)) {
@@ -349,15 +337,15 @@ void hrd_create_dgram_qps(struct hrd_ctrl_blk* cb) {
 }
 
 /* Create connected QPs and transition them to INIT */
-void hrd_create_conn_qps(struct hrd_ctrl_blk* cb) {
-  int i;
-  assert(cb->conn_qp != NULL && cb->conn_cq != NULL && cb->pd != NULL &&
-         cb->ctx != NULL);
-  assert(cb->num_conn_qps >= 1 && cb->dev_port_id >= 1);
+void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
+  assert(cb->conn_qp != nullptr && cb->conn_cq != nullptr &&
+         cb->pd != nullptr && cb->resolve.ib_ctx != nullptr);
+  assert(cb->num_conn_qps >= 1 && cb->resolve.dev_port_id >= 1);
 
-  for (i = 0; i < cb->num_conn_qps; i++) {
-    cb->conn_cq[i] = ibv_create_cq(cb->ctx, HRD_SQ_DEPTH, NULL, NULL, 0);
-    assert(cb->conn_cq[i] != NULL);
+  for (size_t i = 0; i < cb->num_conn_qps; i++) {
+    cb->conn_cq[i] =
+        ibv_create_cq(cb->resolve.ib_ctx, HRD_SQ_DEPTH, nullptr, nullptr, 0);
+    assert(cb->conn_cq[i] != nullptr);
 
 #if HRD_CONNECT_IB_ATOMICS == 0
     struct ibv_qp_init_attr create_attr;
@@ -373,13 +361,13 @@ void hrd_create_conn_qps(struct hrd_ctrl_blk* cb) {
     create_attr.cap.max_inline_data = HRD_MAX_INLINE;
 
     cb->conn_qp[i] = ibv_create_qp(cb->pd, &create_attr);
-    assert(cb->conn_qp[i] != NULL);
+    assert(cb->conn_qp[i] != nullptr);
 
     struct ibv_qp_attr init_attr;
     memset(&init_attr, 0, sizeof(struct ibv_qp_attr));
     init_attr.qp_state = IBV_QPS_INIT;
     init_attr.pkey_index = 0;
-    init_attr.port_num = cb->dev_port_id;
+    init_attr.port_num = cb->resolve.dev_port_id;
     init_attr.qp_access_flags = cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
                                                 : IBV_ACCESS_REMOTE_WRITE |
                                                       IBV_ACCESS_REMOTE_READ |
@@ -413,14 +401,14 @@ void hrd_create_conn_qps(struct hrd_ctrl_blk* cb) {
                             IBV_EXP_QP_INIT_ATTR_ATOMICS_ARG;
     create_attr.qp_type = IBV_QPT_RC;
 
-    cb->conn_qp[i] = ibv_exp_create_qp(cb->ctx, &create_attr);
-    assert(cb->conn_qp[i] != NULL);
+    cb->conn_qp[i] = ibv_exp_create_qp(cb->resolve.ib_ctx, &create_attr);
+    assert(cb->conn_qp[i] != nullptr);
 
     struct ibv_exp_qp_attr init_attr;
     memset(&init_attr, 0, sizeof(struct ibv_exp_qp_attr));
     init_attr.qp_state = IBV_QPS_INIT;
     init_attr.pkey_index = 0;
-    init_attr.port_num = cb->dev_port_id;
+    init_attr.port_num = cb->resolve.dev_port_id;
     init_attr.qp_access_flags = cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
                                                 : IBV_ACCESS_REMOTE_WRITE |
                                                       IBV_ACCESS_REMOTE_READ |
@@ -437,12 +425,12 @@ void hrd_create_conn_qps(struct hrd_ctrl_blk* cb) {
 }
 
 /* Connects @cb's queue pair index @n to remote QP @remote_qp_attr */
-void hrd_connect_qp(struct hrd_ctrl_blk* cb, int n,
-                    struct hrd_qp_attr* remote_qp_attr) {
-  assert(cb != NULL && remote_qp_attr != NULL);
-  assert(n >= 0 && n < cb->num_conn_qps);
-  assert(cb->conn_qp[n] != NULL);
-  assert(cb->dev_port_id >= 1);
+void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
+                    hrd_qp_attr_t* remote_qp_attr) {
+  assert(cb != nullptr && remote_qp_attr != nullptr);
+  assert(n < cb->num_conn_qps);
+  assert(cb->conn_qp[n] != nullptr);
+  assert(cb->resolve.dev_port_id >= 1);
 
 #if HRD_CONNECT_IB_ATOMICS == 0
   struct ibv_qp_attr conn_attr;
@@ -456,7 +444,7 @@ void hrd_connect_qp(struct hrd_ctrl_blk* cb, int n,
   conn_attr.ah_attr.dlid = remote_qp_attr->lid;
   conn_attr.ah_attr.sl = 0;
   conn_attr.ah_attr.src_path_bits = 0;
-  conn_attr.ah_attr.port_num = cb->dev_port_id; /* Local port! */
+  conn_attr.ah_attr.port_num = cb->resolve.dev_port_id; /* Local port! */
 
   int rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
                   IBV_QP_RQ_PSN;
@@ -503,13 +491,13 @@ void hrd_connect_qp(struct hrd_ctrl_blk* cb, int n,
   conn_attr.rq_psn = HRD_DEFAULT_PSN;
 
   conn_attr.ah_attr.is_global = 0;
-  conn_attr.ah_attr..dlid = remote_qp_attr->lid;
+  conn_attr.ah_attr.dlid = remote_qp_attr->lid;
   conn_attr.ah_attr.sl = 0;
   conn_attr.ah_attr.src_path_bits = 0;
-  conn_attr.ah_attr.port_num = cb->dev_port_id; /* Local port! */
+  conn_attr.ah_attr.port_num = cb->resolve.dev_port_id; /* Local port! */
 
-  int rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
-                  IBV_QP_RQ_PSN;
+  uint64_t rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU |
+                       IBV_QP_DEST_QPN | IBV_QP_RQ_PSN;
 
   if (!cb->use_uc) {
     conn_attr.max_dest_rd_atomic = 16;
@@ -526,7 +514,7 @@ void hrd_connect_qp(struct hrd_ctrl_blk* cb, int n,
   conn_attr.qp_state = IBV_QPS_RTS;
   conn_attr.sq_psn = HRD_DEFAULT_PSN;
 
-  int rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
+  uint64_t rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
 
   if (!cb->use_uc) {
     conn_attr.timeout = 14;
@@ -547,80 +535,57 @@ void hrd_connect_qp(struct hrd_ctrl_blk* cb, int n,
   return;
 }
 
-void hrd_publish_conn_qp(struct hrd_ctrl_blk* cb, int n, const char* qp_name) {
-  assert(cb != NULL);
-  assert(n >= 0 && n < cb->num_conn_qps);
+void hrd_publish_conn_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name) {
+  assert(n < cb->num_conn_qps);
+  assert(strlen(qp_name) < HRD_QP_NAME_SIZE - 1);
+  assert(strstr(qp_name, HRD_RESERVED_NAME_PREFIX) == nullptr);
 
-  assert(qp_name != NULL && strlen(qp_name) < HRD_QP_NAME_SIZE - 1);
-  assert(strstr(qp_name, HRD_RESERVED_NAME_PREFIX) == NULL);
+  size_t len = strlen(qp_name);
+  for (size_t i = 0; i < len; i++) assert(qp_name[i] != ' ');
 
-  int len = strlen(qp_name);
-  int i;
-  for (i = 0; i < len; i++) {
-    if (qp_name[i] == ' ') {
-      fprintf(stderr, "HRD: Space not allowed in QP name\n");
-      exit(-1);
-    }
-  }
-
-  struct hrd_qp_attr qp_attr;
+  hrd_qp_attr_t qp_attr;
   memcpy(qp_attr.name, qp_name, len);
   qp_attr.name[len] = 0; /* Add the null terminator */
-  qp_attr.buf_addr = (uint64_t)(uintptr_t)cb->conn_buf;
+  qp_attr.buf_addr = reinterpret_cast<uint64_t>(cb->conn_buf);
   qp_attr.buf_size = cb->conn_buf_size;
   qp_attr.rkey = cb->conn_buf_mr->rkey;
-  qp_attr.lid = hrd_get_local_lid(cb->conn_qp[n]->context, cb->dev_port_id);
+  qp_attr.lid = cb->resolve.port_lid;
   qp_attr.qpn = cb->conn_qp[n]->qp_num;
 
-  hrd_publish(qp_attr.name, &qp_attr, sizeof(struct hrd_qp_attr));
+  hrd_publish(qp_attr.name, &qp_attr, sizeof(hrd_qp_attr_t));
 }
 
-void hrd_publish_dgram_qp(struct hrd_ctrl_blk* cb, int n, const char* qp_name) {
-  assert(cb != NULL);
-  assert(n >= 0 && n < cb->num_dgram_qps);
+void hrd_publish_dgram_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name) {
+  assert(n < cb->num_dgram_qps);
+  assert(strlen(qp_name) < HRD_QP_NAME_SIZE - 1);
+  assert(strstr(qp_name, HRD_RESERVED_NAME_PREFIX) == nullptr);
 
-  assert(qp_name != NULL && strlen(qp_name) < HRD_QP_NAME_SIZE - 1);
-  assert(strstr(qp_name, HRD_RESERVED_NAME_PREFIX) == NULL);
+  size_t len = strlen(qp_name);
+  for (size_t i = 0; i < len; i++) assert(qp_name[i] != ' ');
 
-  int len = strlen(qp_name);
-  int i;
-  for (i = 0; i < len; i++) {
-    if (qp_name[i] == ' ') {
-      fprintf(stderr, "HRD: Space not allowed in QP name\n");
-      exit(-1);
-    }
-  }
-
-  struct hrd_qp_attr qp_attr;
+  hrd_qp_attr_t qp_attr;
   memcpy(qp_attr.name, qp_name, len);
   qp_attr.name[len] = 0; /* Add the null terminator */
-  qp_attr.lid = hrd_get_local_lid(cb->dgram_qp[n]->context, cb->dev_port_id);
+  qp_attr.lid = cb->resolve.port_lid;
   qp_attr.qpn = cb->dgram_qp[n]->qp_num;
 
-  hrd_publish(qp_attr.name, &qp_attr, sizeof(struct hrd_qp_attr));
+  hrd_publish(qp_attr.name, &qp_attr, sizeof(hrd_qp_attr_t));
 }
 
-struct hrd_qp_attr* hrd_get_published_qp(const char* qp_name) {
-  struct hrd_qp_attr* ret;
-  assert(qp_name != NULL && strlen(qp_name) < HRD_QP_NAME_SIZE - 1);
-  assert(strstr(qp_name, HRD_RESERVED_NAME_PREFIX) == NULL);
+hrd_qp_attr_t* hrd_get_published_qp(const char* qp_name) {
+  assert(strlen(qp_name) < HRD_QP_NAME_SIZE - 1);
+  assert(strstr(qp_name, HRD_RESERVED_NAME_PREFIX) == nullptr);
 
-  int len = strlen(qp_name);
-  int i;
-  for (i = 0; i < len; i++) {
-    if (qp_name[i] == ' ') {
-      fprintf(stderr, "HRD: Space not allowed in QP name\n");
-      exit(-1);
-    }
-  }
+  hrd_qp_attr_t* ret;
+  for (size_t i = 0; i < strlen(qp_name); i++) assert(qp_name[i] != ' ');
 
-  int ret_len = hrd_get_published(qp_name, (void**)&ret);
+  int ret_len = hrd_get_published(qp_name, reinterpret_cast<void**>(&ret));
 
   /*
    * The registry lookup returns only if we get a unique QP for @qp_name, or
    * if the memcached lookup succeeds but we don't have an entry for @qp_name.
    */
-  assert(ret_len == sizeof(struct hrd_qp_attr) || ret_len == -1);
+  assert(ret_len == static_cast<int>(sizeof(hrd_qp_attr_t)) || ret_len == -1);
   _unused(ret_len);
 
   return ret;
