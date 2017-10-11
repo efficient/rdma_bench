@@ -119,17 +119,28 @@ struct hrd_ctrl_blk_t {
   uint8_t pad[64];
 };
 
-/* Major initialzation functions */
-hrd_ctrl_blk_t* hrd_ctrl_blk_t_init(size_t local_hid, size_t port_index,
-                                    size_t numa_node_id, size_t num_conn_qps,
-                                    bool use_uc,
-                                    volatile void* prealloc_conn_buf,
-                                    size_t conn_buf_size, int conn_buf_shm_key,
-                                    volatile void* prealloc_dgram_buf,
-                                    size_t num_dgram_qps, size_t dgram_buf_size,
-                                    int dgram_buf_shm_key);
+struct hrd_conn_config_t {
+  size_t num_qps;
+  bool use_uc;
+  volatile uint8_t* prealloc_buf;
+  size_t buf_size;
+  int buf_shm_key;
+};
 
-int hrd_ctrl_blk_t_destroy(hrd_ctrl_blk_t* cb);
+struct hrd_dgram_config_t {
+  size_t num_qps;
+  void* prealloc_buf;
+  size_t buf_size;
+  int buf_shm_key;
+};
+
+/* Major initialzation functions */
+hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
+                                  size_t numa_node_id,
+                                  hrd_conn_config_t* conn_config,
+                                  hrd_dgram_config_t* dgram_config);
+
+int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb);
 
 /* Debug */
 void hrd_ibv_devinfo(void);

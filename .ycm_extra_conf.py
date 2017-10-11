@@ -35,13 +35,17 @@ import ycm_core
 
 flags = [
     '-x',
-    'c',
+    'c++',
+    '-I', '/home/akalia/rdma_bench/',
+    '-I', '/users/akalia/rdma_bench/',
     '-Wall',
     '-Werror',
-    '-Wno-unused-result',
-    '-I', '/users/akalia/rdma_bench/libhrd/',
-    '-I', '/users/akalia/rdma_bench/libhrd_cpp/',
-    '-I', '/users/akalia/rdma_bench/mica/',
+    '-Wextra',
+    '-Wno-inline',
+    '-Wno-unused-function',
+    '-Wold-style-cast',
+    '-Wsign-conversion',
+    '-std=c++14',
 ]
 
 

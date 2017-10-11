@@ -1,3 +1,6 @@
+#include <stdint.h>
+#include <stdlib.h>
+
 /*
  * This code can emulate either an array of 8B counters or DrTM-KV with
  * 16B keys and 32B values.
@@ -45,14 +48,8 @@
 #define UNSIG_BATCH 32
 #define UNSIG_BATCH_ (UNSIG_BATCH - 1)
 
-struct thread_params {
-  int id;          /* Global ID of this client or server thread */
-  int num_threads; /* Number of threads launched at a client */
-  int base_port_index;
-  int num_server_ports;
-  int num_client_ports;
-  int appnet; /* Does the cluster disallow cross-port communication? */
-  int postlist;
+struct thread_params_t {
+  size_t id; /* Global ID of this client or server thread */
 };
 
 /*

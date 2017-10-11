@@ -5,12 +5,10 @@
  * preallocated buffer. If @prealloc_conn_buf == nullptr, @conn_buf_size is the
  * size of the new buffer to create.
  */
-struct hrd_ctrl_blk_t* hrd_ctrl_blk_t_init(
-    size_t local_hid, size_t port_index, size_t numa_node_id,
-    size_t num_conn_qps, bool use_uc, volatile uint8_t* prealloc_conn_buf,
-    size_t conn_buf_size, int conn_buf_shm_key,
-    volatile uint8_t* prealloc_dgram_buf, size_t num_dgram_qps,
-    size_t dgram_buf_size, int dgram_buf_shm_key) {
+struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
+                                         size_t numa_node_id,
+                                         hrd_conn_config_t* conn_config,
+                                         hrd_dgram_config_t* dgram_config) {
 #if HRD_CONNECT_IB_ATOMICS == 1
   hrd_red_printf(
       "HRD: Connect-IB atomics enabled. This QP setup has not "
@@ -18,13 +16,24 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_t_init(
   sleep(1);
 #endif
 
-  hrd_red_printf(
-      "HRD: creating control block %zu: port %zu, socket %zu, "
-      "conn qps %zu UC %d, conn buf %zu bytes (key %d), "
-      "dgram qps %zu, dgram buf %.3f MB (key %d)\n",
-      local_hid, port_index, numa_node_id, num_conn_qps, use_uc, conn_buf_size,
-      conn_buf_shm_key, num_dgram_qps, dgram_buf_size / M_1 * 1.0,
-      dgram_buf_shm_key);
+  hrd_red_printf("HRD: creating control block %zu: port %zu, socket %zu.\n",
+                 local_hid, port_index, numa_node_id);
+
+  if (conn_config != nullptr) {
+    hrd_red_printf(
+        "HRD: control block %zu: "
+        "conn qps %zu UC %d, conn buf %zu bytes (key %d).\n",
+        local_hid, conn_config->num_qps, conn_config->use_uc,
+        conn_config->buf_size, conn_config->buf_shm_key);
+  }
+
+  if (dgram_config != nullptr) {
+    hrd_red_printf(
+        "HRD: control block %zu: "
+        "dgram qps %zu, dgram buf %.3f MB (key %d)\n",
+        local_hid, dgram_config->num_qps, dgram_config->buf_size / M_1 * 1.0,
+        dgram_config->buf_shm_key);
+  }
 
   /*
    * Check arguments for sanity.
@@ -170,7 +179,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_t_init(
 }
 
 /* Free up the resources taken by @cb. Return -1 if something fails, else 0. */
-int hrd_ctrl_blk_t_destroy(hrd_ctrl_blk_t* cb) {
+int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
   hrd_red_printf("HRD: Destroying control block %d\n", cb->local_hid);
 
   /* Destroy QPs and CQs. QPs must be destroyed before CQs. */
