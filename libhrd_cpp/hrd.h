@@ -30,7 +30,7 @@
 #define HRD_QP_NAME_SIZE 200 /* Size (in bytes) of a queue pair name */
 #define HRD_RESERVED_NAME_PREFIX "__HRD_RESERVED_NAME_PREFIX"
 
-#define HRD_CONNECT_IB_ATOMICS 0
+#define HRD_CONNECT_IB_ATOMICS 1
 
 /*
  * Small max_inline_data reduces the QP's max WQE size, which reduces the

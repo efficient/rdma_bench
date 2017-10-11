@@ -55,8 +55,6 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
   struct ibv_device** dev_list;
   int num_devices = 0;
 
-  assert(port_index >= 0);
-
   dev_list = ibv_get_device_list(&num_devices);
   CPE(!dev_list, "HRD: Failed to get IB devices list", 0);
 

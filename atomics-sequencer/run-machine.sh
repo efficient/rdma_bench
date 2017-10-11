@@ -5,12 +5,12 @@ function blue() {
 	echo "${es}$1${ee}"
 }
 
-export HRD_REGISTRY_IP="10.113.1.47"
+export HRD_REGISTRY_IP="fawn-pluto0"
 
 if [ "$#" -ne 1 ]; then
-    blue "Illegal number of parameters"
-	blue "Usage: ./run-machine.sh <machine_number>"
-	exit
+  blue "Illegal number of parameters"
+  blue "Usage: ./run-machine.sh <machine_number>"
+  exit
 fi
 
 blue "Removing hugepages"
@@ -22,12 +22,11 @@ num_threads=8			# Threads per client machine
 blue "Running $num_threads client threads"
 
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
-	--num-threads $num_threads \
-	--base-port-index 0 \
-	--num-server-ports 2 \
-	--num-client-ports 2 \
-	--appnet 0 \
+	numactl --cpunodebind=0 --membind=0 ./atomics-sequencer \
+	--num_threads $num_threads \
+	--base_port_index 0 \
+	--num_server_ports 2 \
+	--num_client_ports 2 \
 	--postlist 16 \
-	--is-client 1 \
-	--machine-id $1
+	--is_client 1 \
+	--machine_id $1

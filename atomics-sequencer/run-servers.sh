@@ -5,7 +5,7 @@ function blue() {
 	echo "${es}$1${ee}"
 }
 
-export HRD_REGISTRY_IP="10.113.1.47"
+export HRD_REGISTRY_IP="fawn-pluto0"
 
 blue "Removing hugepages used by server's buffer"
 sudo ipcrm -M 24
@@ -20,8 +20,7 @@ sleep 1
 blue "Starting $num_server_threads server threads"
 
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
-	--base-port-index 0 \
-	--num-server-ports 2 \
-	--appnet 0 \
-	--is-client 0
+	numactl --cpunodebind=0 --membind=0 ./atomics-sequencer \
+	--base_port_index 0 \
+	--num_server_ports 2 \
+	--is_client 0

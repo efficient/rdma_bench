@@ -190,11 +190,11 @@ void* run_client(thread_params_t* params) {
 
 #if HRD_CONNECT_IB_ATOMICS == 1
       printf(
-          "main: Client %d: %.2f GETs/s, %.2f PUTs/s, %.2f ops/s "
-          "(%.2f atomics/s). Ctr = %lld\n",
+          "main: Client %zu: %.2f GETs/s, %.2f PUTs/s, %.2f ops/s "
+          "(%.2f atomics/s). Ctr = %zu.\n",
           clt_gid, num_gets / seconds, num_puts / seconds,
           (num_gets + num_puts) / seconds, num_atomics / seconds,
-          (size_t)bswap_64(*counter));
+          static_cast<size_t>(bswap_64(*counter)));
 #else
       printf(
           "main: Client %zu: %.2f GETs/s, %.2f PUTs/s, %.2f ops/s "
@@ -297,13 +297,12 @@ int main(int argc, char* argv[]) {
   }
 
   // Check the flags
-  assert(FLAGS_base_port_index >= 0 && FLAGS_base_port_index <= 8);
+  assert(FLAGS_base_port_index <= 8);
 
   if (FLAGS_is_client) {
     assert(FLAGS_num_server_ports >= 1 && FLAGS_num_server_ports <= 8);
     assert(FLAGS_num_client_ports >= 1 && FLAGS_num_client_ports <= 8);
     assert(FLAGS_num_threads >= 1);
-    assert(FLAGS_machine_id >= 0);
     assert(FLAGS_postlist >= 1 && FLAGS_postlist <= MAX_POSTLIST);
 
     assert(UNSIG_BATCH >= FLAGS_postlist);   /* Postlist check */

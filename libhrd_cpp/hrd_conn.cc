@@ -269,8 +269,8 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
 void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
   assert(cb->dgram_qp != nullptr && cb->dgram_send_cq != nullptr &&
          cb->dgram_recv_cq != nullptr && cb->pd != nullptr &&
-         cb->ctx != nullptr);
-  assert(cb->num_dgram_qps >= 1 && cb->dev_port_id >= 1);
+         cb->resolve.ib_ctx != nullptr);
+  assert(cb->num_dgram_qps >= 1 && cb->resolve.dev_port_id >= 1);
 
   for (size_t i = 0; i < cb->num_dgram_qps; i++) {
     size_t recv_queue_depth = (i == 0) ? HRD_RQ_DEPTH : 1;
@@ -401,14 +401,14 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
                             IBV_EXP_QP_INIT_ATTR_ATOMICS_ARG;
     create_attr.qp_type = IBV_QPT_RC;
 
-    cb->conn_qp[i] = ibv_exp_create_qp(cb->ctx, &create_attr);
+    cb->conn_qp[i] = ibv_exp_create_qp(cb->resolve.ib_ctx, &create_attr);
     assert(cb->conn_qp[i] != nullptr);
 
     struct ibv_exp_qp_attr init_attr;
     memset(&init_attr, 0, sizeof(struct ibv_exp_qp_attr));
     init_attr.qp_state = IBV_QPS_INIT;
     init_attr.pkey_index = 0;
-    init_attr.port_num = cb->dev_port_id;
+    init_attr.port_num = cb->resolve.dev_port_id;
     init_attr.qp_access_flags = cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
                                                 : IBV_ACCESS_REMOTE_WRITE |
                                                       IBV_ACCESS_REMOTE_READ |
@@ -491,13 +491,13 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
   conn_attr.rq_psn = HRD_DEFAULT_PSN;
 
   conn_attr.ah_attr.is_global = 0;
-  conn_attr.ah_attr..dlid = remote_qp_attr->lid;
+  conn_attr.ah_attr.dlid = remote_qp_attr->lid;
   conn_attr.ah_attr.sl = 0;
   conn_attr.ah_attr.src_path_bits = 0;
-  conn_attr.ah_attr.port_num = cb->dev_port_id; /* Local port! */
+  conn_attr.ah_attr.port_num = cb->resolve.dev_port_id; /* Local port! */
 
-  int rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
-                  IBV_QP_RQ_PSN;
+  uint64_t rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU |
+                       IBV_QP_DEST_QPN | IBV_QP_RQ_PSN;
 
   if (!cb->use_uc) {
     conn_attr.max_dest_rd_atomic = 16;
@@ -514,7 +514,7 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
   conn_attr.qp_state = IBV_QPS_RTS;
   conn_attr.sq_psn = HRD_DEFAULT_PSN;
 
-  int rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
+  uint64_t rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
 
   if (!cb->use_uc) {
     conn_attr.timeout = 14;
@@ -585,7 +585,7 @@ hrd_qp_attr_t* hrd_get_published_qp(const char* qp_name) {
    * The registry lookup returns only if we get a unique QP for @qp_name, or
    * if the memcached lookup succeeds but we don't have an entry for @qp_name.
    */
-  assert(ret_len == sizeof(hrd_qp_attr_t) || ret_len == -1);
+  assert(ret_len == static_cast<int>(sizeof(hrd_qp_attr_t)) || ret_len == -1);
   _unused(ret_len);
 
   return ret;
