@@ -1,10 +1,10 @@
 #include <stdexcept>
 #include "hrd.h"
 
-/* Every thread creates a TCP connection to the registry only once. */
+// Every thread creates a TCP connection to the registry only once.
 __thread memcached_st* memc = nullptr;
 
-/* Print information about all IB devices in the system */
+// Print information about all IB devices in the system
 void hrd_ibv_devinfo(void) {
   int num_devices = 0, dev_i;
   struct ibv_device** dev_list;
@@ -46,11 +46,9 @@ void hrd_ibv_devinfo(void) {
   }
 }
 
-/*
- * Finds the port with rank `port_index` (0-based) in the list of ENABLED ports.
- * Fills its device id and device-local port id (1-based) into the supplied
- * control block.
- */
+// Finds the port with rank `port_index` (0-based) in the list of ENABLED ports.
+// Fills its device id and device-local port id (1-based) into the supplied
+// control block.
 void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
   struct ibv_device** dev_list;
   int num_devices = 0;
@@ -73,7 +71,7 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
 
     uint8_t port_i;
     for (port_i = 1; port_i <= device_attr.phys_port_cnt; port_i++) {
-      /* Count this port only if it is enabled */
+      // Count this port only if it is enabled
       struct ibv_port_attr port_attr;
       if (ibv_query_port(ctx, port_i, &port_attr) != 0) {
         printf("HRD: Could not query port %d of device %d\n", port_i, dev_i);
@@ -86,10 +84,10 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
       }
 
       if (ports_to_discover == 0) {
-        printf("HRD: port index %zu resolved to device %d, port %d\n",
-               port_index, dev_i, port_i);
+        printf("HRD: port index %zu resolved to device %d, port %d. Name %s.\n",
+               port_index, dev_i, port_i, dev_list[dev_i]->name);
 
-        /* Fill the device ID and device-local port ID */
+        // Fill the device ID and device-local port ID
         cb->resolve.device_id = dev_i;
         cb->resolve.dev_port_id = port_i;
         cb->resolve.ib_ctx = ctx;
@@ -106,12 +104,12 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
     }
   }
 
-  /* If we come here, port resolution failed */
+  // If we come here, port resolution failed
   throw std::runtime_error("Failed to resolve IB port index " +
                            std::to_string(port_index));
 }
 
-/* Allocate SHM with @shm_key, and save the shmid into @shm_id_ret */
+// Allocate SHM with @shm_key, and save the shmid into @shm_id_ret
 uint8_t* hrd_malloc_socket(int shm_key, size_t size, size_t socket_id) {
   int shmid = shmget(shm_key, size, IPC_CREAT | IPC_EXCL | 0666 | SHM_HUGETLB);
   if (shmid == -1) {
@@ -154,7 +152,7 @@ uint8_t* hrd_malloc_socket(int shm_key, size_t size, size_t socket_id) {
     exit(-1);
   }
 
-  /* Bind the buffer to this socket */
+  // Bind the buffer to this socket
   const unsigned long nodemask = (1ull << socket_id);
   int ret = mbind(buf, size, MPOL_BIND, &nodemask, 32, 0);
   if (ret != 0) {
@@ -165,7 +163,7 @@ uint8_t* hrd_malloc_socket(int shm_key, size_t size, size_t socket_id) {
   return buf;
 }
 
-/* Free shm @shm_key and @shm_buf. Return 0 on success, else -1. */
+// Free shm @shm_key and @shm_buf. Return 0 on success, else -1.
 int hrd_free(int shm_key, void* shm_buf) {
   int ret;
   int shmid = shmget(shm_key, 0, 0);
@@ -203,7 +201,7 @@ int hrd_free(int shm_key, void* shm_buf) {
   return 0;
 }
 
-/* Like printf, but red. Limited to 1000 characters. */
+// Like printf, but red. Limited to 1000 characters.
 void hrd_red_printf(const char* format, ...) {
 #define RED_LIM 1000
   va_list args;
@@ -215,18 +213,18 @@ void hrd_red_printf(const char* format, ...) {
 
   va_start(args, format);
 
-  /* Marshal the stuff to print in a buffer */
+  // Marshal the stuff to print in a buffer
   vsnprintf(buf1, RED_LIM, format, args);
 
-  /* Probably a bad check for buffer overflow */
+  // Probably a bad check for buffer overflow
   for (i = RED_LIM - 1; i >= RED_LIM - 50; i--) {
     assert(buf1[i] == 0);
   }
 
-  /* Add markers for red color and reset color */
+  // Add markers for red color and reset color
   snprintf(buf2, 1000, "\033[31m%s\033[0m", buf1);
 
-  /* Probably another bad check for buffer overflow */
+  // Probably another bad check for buffer overflow
   for (i = RED_LIM - 1; i >= RED_LIM - 50; i--) {
     assert(buf2[i] == 0);
   }
@@ -243,7 +241,7 @@ void hrd_nano_sleep(size_t ns) {
   while (end - start < upp) end = hrd_get_cycles();
 }
 
-/* Get the LID of a port on the device specified by @ctx */
+// Get the LID of a port on the device specified by @ctx
 uint16_t hrd_get_local_lid(struct ibv_context* ctx, int dev_port_id) {
   assert(ctx != nullptr && dev_port_id >= 1);
 
@@ -257,7 +255,7 @@ uint16_t hrd_get_local_lid(struct ibv_context* ctx, int dev_port_id) {
   return attr.lid;
 }
 
-/* Return the environment variable @name if it is set. Exit if not. */
+// Return the environment variable @name if it is set. Exit if not.
 char* hrd_getenv(const char* name) {
   char* env = getenv(name);
   if (env == nullptr) {
@@ -268,7 +266,7 @@ char* hrd_getenv(const char* name) {
   return env;
 }
 
-/* Record the current time in @timebuf. @timebuf must have at least 50 bytes. */
+// Record the current time in @timebuf. @timebuf must have at least 50 bytes.
 void hrd_get_formatted_time(char* timebuf) {
   assert(timebuf != nullptr);
   time_t timer;
@@ -288,7 +286,7 @@ memcached_st* hrd_create_memc() {
   memc = memcached_create(nullptr);
   char* registry_ip = hrd_getenv("HRD_REGISTRY_IP");
 
-  /* We run the memcached server on the default memcached port */
+  // We run the memcached server on the default memcached port
   servers = memcached_server_list_append(servers, registry_ip,
                                          MEMCACHED_DEFAULT_PORT, &rc);
   rc = memcached_server_push(memc, servers);
@@ -302,9 +300,7 @@ void hrd_close_memcached() {
   memcached_free(memc);
 }
 
-/*
- * Insert key -> value mapping into memcached running at HRD_REGISTRY_IP.
- */
+// Insert key -> value mapping into memcached running at HRD_REGISTRY_IP.
 void hrd_publish(const char* key, void* value, size_t len) {
   assert(key != nullptr && value != nullptr && len > 0);
   memcached_return rc;
@@ -326,16 +322,14 @@ void hrd_publish(const char* key, void* value, size_t len) {
   }
 }
 
-/*
- * Get the value associated with "key" into "value", and return the length
- * of the value. If the key is not found, return nullptr and len -1. For all
- * other errors, terminate.
- *
- * This function sometimes gets called in a polling loop - ensure that there
- * are no memory leaks or unterminated memcached connections! We don't need
- * to free() the resul of getenv() since it points to a string in the process
- * environment.
- */
+// Get the value associated with "key" into "value", and return the length
+// of the value. If the key is not found, return nullptr and len -1. For all
+// other errors, terminate.
+//
+// This function sometimes gets called in a polling loop - ensure that there
+// are no memory leaks or unterminated memcached connections! We don't need
+// to free() the resul of getenv() since it points to a string in the process
+// environment.
 int hrd_get_published(const char* key, void** value) {
   assert(key != nullptr);
   if (memc == nullptr) {
@@ -362,41 +356,37 @@ int hrd_get_published(const char* key, void** value) {
     exit(-1);
   }
 
-  /* Never reached */
+  // Never reached
   assert(false);
 }
 
-/*
- * To advertise a queue pair with name qp_name as ready, we publish this
- * key-value mapping: "HRD_RESERVED_NAME_PREFIX-qp_name" -> "hrd_ready". This
- * requires that a qp_name never starts with HRD_RESERVED_NAME_PREFIX.
- *
- * This avoids overwriting the memcached entry for qp_name which might still
- * be needed by the remote peer.
- */
+// To advertise a queue pair with name qp_name as ready, we publish this
+// key-value mapping: "HRD_RESERVED_NAME_PREFIX-qp_name" -> "hrd_ready". This
+// requires that a qp_name never starts with HRD_RESERVED_NAME_PREFIX.
+//
+// This avoids overwriting the memcached entry for qp_name which might still
+// be needed by the remote peer.
 void hrd_publish_ready(const char* qp_name) {
-  char value[HRD_QP_NAME_SIZE];
-  assert(qp_name != nullptr && strlen(qp_name) < HRD_QP_NAME_SIZE);
+  char value[kHrdQPNameSize];
+  assert(qp_name != nullptr && strlen(qp_name) < kHrdQPNameSize);
 
-  char new_name[2 * HRD_QP_NAME_SIZE];
-  sprintf(new_name, "%s", HRD_RESERVED_NAME_PREFIX);
+  char new_name[2 * kHrdQPNameSize];
+  sprintf(new_name, "%s", kHrdReservedNamePrefix);
   strcat(new_name, qp_name);
 
   sprintf(value, "%s", "hrd_ready");
   hrd_publish(new_name, value, strlen(value));
 }
 
-/*
- * To check if a queue pair with name qp_name is ready, we check if this
- * key-value mapping exists: "HRD_RESERVED_NAME_PREFIX-qp_name" -> "hrd_ready".
- */
+// To check if a queue pair with name qp_name is ready, we check if this
+// key-value mapping exists: "HRD_RESERVED_NAME_PREFIX-qp_name" -> "hrd_ready".
 void hrd_wait_till_ready(const char* qp_name) {
   char* value;
-  char exp_value[HRD_QP_NAME_SIZE];
+  char exp_value[kHrdQPNameSize];
   sprintf(exp_value, "%s", "hrd_ready");
 
-  char new_name[2 * HRD_QP_NAME_SIZE];
-  sprintf(new_name, "%s", HRD_RESERVED_NAME_PREFIX);
+  char new_name[2 * kHrdQPNameSize];
+  sprintf(new_name, "%s", kHrdReservedNamePrefix);
   strcat(new_name, qp_name);
 
   int tries = 0;

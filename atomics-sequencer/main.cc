@@ -7,11 +7,9 @@
 #include <vector>
 #include "libhrd_cpp/hrd.h"
 
-/*
- * QP naming:
- * 1. server-i-j is the jth QP on port i of the server.
- * 2. client-i-j is the jth QP of client thread i in the system.
- */
+// QP naming:
+// 1. server-i-j is the jth QP on port i of the server.
+// 2. client-i-j is the jth QP of client thread i in the system.
 DEFINE_uint64(num_threads, 0, "Number of threads");
 DEFINE_uint64(base_port_index, 0, "Base port index");
 DEFINE_uint64(num_server_ports, 0, "Number of server ports");
@@ -20,19 +18,17 @@ DEFINE_bool(is_client, false, "Is this process a client?");
 DEFINE_uint64(machine_id, 0, "ID of this machine");
 DEFINE_uint64(postlist, 0, "Postlist size");
 
-/* A single server thread creates all QPs */
+// A single server thread creates all QPs
 void* run_server(thread_params_t* params) {
   size_t total_srv_qps = NUM_CLIENTS * QPS_PER_CLIENT;
-  size_t srv_gid = params->id; /* Global ID of this server thread */
+  size_t srv_gid = params->id;  // Global ID of this server thread
 
-  /*
-   * Create one control block per port. Each control block has enough QPs
-   * for all client QPs. The ith client QP must connect to the ith QP in a
-   * a control block, but clients can choose the control block.
-   */
+  // Create one control block per port. Each control block has enough QPs
+  // for all client QPs. The ith client QP must connect to the ith QP in a
+  // a control block, but clients can choose the control block.
   auto** cb = new hrd_ctrl_blk_t*[FLAGS_num_server_ports];
 
-  /* Allocate a registered buffer for port #0 only */
+  // Allocate a registered buffer for port #0 only
   for (size_t i = 0; i < FLAGS_num_server_ports; i++) {
     volatile uint8_t* prealloc_buf = (i == 0 ? nullptr : cb[0]->conn_buf);
     size_t ib_port_index = FLAGS_base_port_index + i;
@@ -45,13 +41,13 @@ void* run_server(thread_params_t* params) {
     conn_config.buf_size = BUF_SIZE;
     conn_config.buf_shm_key = shm_key;
 
-    cb[i] = hrd_ctrl_blk_init(srv_gid + i,      /* local hid */
-                              ib_port_index, 0, /* port index, numa node id */
+    cb[i] = hrd_ctrl_blk_init(srv_gid + i,       // local hid
+                              ib_port_index, 0,  // port index, numa node id
                               &conn_config, nullptr);
 
-    /* Register all created QPs - only some will get used! */
+    // Register all created QPs - only some will get used!
     for (size_t j = 0; j < total_srv_qps; j++) {
-      char srv_name[HRD_QP_NAME_SIZE];
+      char srv_name[kHrdQPNameSize];
       sprintf(srv_name, "server-%zu-%zu", i, j);
       hrd_publish_conn_qp(cb[i], j, srv_name);
     }
@@ -63,8 +59,8 @@ void* run_server(thread_params_t* params) {
 
   for (size_t i = 0; i < NUM_CLIENTS; i++) {
     for (size_t j = 0; j < QPS_PER_CLIENT; j++) {
-      /* Iterate over all client QPs */
-      char clt_name[HRD_QP_NAME_SIZE];
+      // Iterate over all client QPs
+      char clt_name[kHrdQPNameSize];
       sprintf(clt_name, "client-%zu-%zu", i, j);
 
       hrd_qp_attr_t* clt_qp = nullptr;
@@ -73,7 +69,7 @@ void* run_server(thread_params_t* params) {
         if (clt_qp == nullptr) usleep(200000);
       }
 
-      /* Calculate the control block and QP to use for this client */
+      // Calculate the control block and QP to use for this client
       size_t cb_i = i % FLAGS_num_server_ports;
       size_t qp_i = (i * QPS_PER_CLIENT) + j;
 
@@ -81,7 +77,7 @@ void* run_server(thread_params_t* params) {
              j, cb_i, qp_i);
       hrd_connect_qp(cb[cb_i], qp_i, clt_qp);
 
-      char srv_name[HRD_QP_NAME_SIZE];
+      char srv_name[kHrdQPNameSize];
       sprintf(srv_name, "server-%zu-%zu", cb_i, qp_i);
 
       hrd_publish_ready(srv_name);
@@ -90,7 +86,7 @@ void* run_server(thread_params_t* params) {
 
   auto* counter = reinterpret_cast<volatile size_t*>(cb[0]->conn_buf);
 
-  /* Repetedly print the counter */
+  // Repetedly print the counter
   while (1) {
     printf("main: Counter = %zu\n", *counter);
     sleep(1);
@@ -100,15 +96,13 @@ void* run_server(thread_params_t* params) {
 }
 
 void* run_client(thread_params_t* params) {
-  size_t clt_gid = params->id; /* Global ID of this client thread */
+  size_t clt_gid = params->id;  // Global ID of this client thread
 
   size_t ib_port_index =
       FLAGS_base_port_index + clt_gid % FLAGS_num_client_ports;
 
-  /*
-   * Don't use BUF_SIZE at client - it can be large and libhrd zeros it out,
-   * which can take time. We don't need a large buffer at clients.
-   */
+  // Don't use BUF_SIZE at client - it can be large and libhrd zeros it out,
+  // which can take time. We don't need a large buffer at clients.
   hrd_conn_config_t conn_config;
   conn_config.num_qps = QPS_PER_CLIENT;
   conn_config.use_uc = false;
@@ -124,16 +118,16 @@ void* run_client(thread_params_t* params) {
   hrd_qp_attr_t* srv_qp[QPS_PER_CLIENT];
 
   for (size_t i = 0; i < QPS_PER_CLIENT; i++) {
-    /* Compute the server port (or control block) and QP to use */
+    // Compute the server port (or control block) and QP to use
     size_t srv_cb_i = clt_gid % FLAGS_num_server_ports;
     size_t srv_qp_i = (clt_gid * QPS_PER_CLIENT) + i;
-    char srv_name[HRD_QP_NAME_SIZE];
+    char srv_name[kHrdQPNameSize];
     sprintf(srv_name, "server-%zu-%zu", srv_cb_i, srv_qp_i);
 
-    char clt_name[HRD_QP_NAME_SIZE];
+    char clt_name[kHrdQPNameSize];
     sprintf(clt_name, "client-%zu-%zu", clt_gid, i);
 
-    /* Publish and connect the ith QP */
+    // Publish and connect the ith QP
     hrd_publish_conn_qp(cb, i, clt_name);
     printf("main: Published client %zu's QP %zu. Waiting for server %s\n",
            clt_gid, i, srv_name);
@@ -151,30 +145,30 @@ void* run_client(thread_params_t* params) {
     hrd_wait_till_ready(srv_name);
   }
 
-  /* Datapath */
+  // Datapath
   struct ibv_send_wr wr[MAX_POSTLIST], *bad_send_wr;
   struct ibv_sge sgl[MAX_POSTLIST];
   struct ibv_wc wc;
-  size_t w_i = 0;                     /* Window index */
-  size_t nb_tx[QPS_PER_CLIENT] = {0}; /* For selective signaling */
+  size_t w_i = 0;                      // Window index
+  size_t nb_tx[QPS_PER_CLIENT] = {0};  // For selective signaling
   int ret;
 
-  size_t rolling_iter = 0; /* For performance measurement */
-  size_t num_reads = 0;    /* Number of RDMA reads issued */
-  size_t num_atomics = 0;  /* Number of atomics issued */
+  size_t rolling_iter = 0;  // For performance measurement
+  size_t num_reads = 0;     // Number of RDMA reads issued
+  size_t num_atomics = 0;   // Number of atomics issued
 
-  size_t qp_i = 0; /* Queue pair to use for this postlist */
+  size_t qp_i = 0;  // Queue pair to use for this postlist
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  /* Make this client's counter requests reasonably independent of others */
+  // Make this client's counter requests reasonably independent of others
   uint64_t seed = 0xdeadbeef;
   for (size_t i = 0; i < clt_gid * M_128; i++) {
     hrd_fastrand(&seed);
   }
 
-  /* cb->conn_buf is 8-byte aligned even if hugepages are not used */
+  // cb->conn_buf is 8-byte aligned even if hugepages are not used
   auto* counter = reinterpret_cast<volatile size_t*>(cb->conn_buf);
 
   while (1) {
@@ -183,7 +177,7 @@ void* run_client(thread_params_t* params) {
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 100000000.0;
 
-      /* Model DrTM tput based on READ and ATOMIC tput */
+      // Model DrTM tput based on READ and ATOMIC tput
       size_t num_gets = num_reads;
       size_t num_puts = num_atomics / 2;
 
@@ -201,7 +195,7 @@ void* run_client(thread_params_t* params) {
           clt_gid, num_gets / seconds, num_puts / seconds,
           (num_gets + num_puts) / seconds, num_atomics / seconds, *counter);
 #endif
-      /* Reset counters */
+      // Reset counters
       rolling_iter = 0;
       num_reads = 0;
       num_atomics = 0;
@@ -209,16 +203,14 @@ void* run_client(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    /* Post a postlist of work requests in a single ibv_post_send() */
+    // Post a postlist of work requests in a single ibv_post_send()
     for (w_i = 0; w_i < FLAGS_postlist; w_i++) {
       int use_atomic = drtm_use_atomic(hrd_fastrand(&seed));
       if (use_atomic) {
-        /*
-         * We should use compare-and-swap here for DrTM, but it makes no
-         * difference for performance (I checked). Using fetch-and-add
-         * allows us to use the same code for both DrTM and array of
-         * counters.
-         */
+        // We should use compare-and-swap here for DrTM, but it makes no
+        // difference for performance (I checked). Using fetch-and-add
+        // allows us to use the same code for both DrTM and array of
+        // counters.
         wr[w_i].opcode = IBV_WR_ATOMIC_FETCH_AND_ADD;
         num_atomics++;
       } else {
@@ -237,7 +229,7 @@ void* run_client(thread_params_t* params) {
       }
 
       sgl[w_i].addr = reinterpret_cast<uint64_t>(cb->conn_buf);
-      sgl[w_i].length = 8; /* Only 8 bytes get written */
+      sgl[w_i].length = 8;  // Only 8 bytes get written
       sgl[w_i].lkey = cb->conn_buf_mr->lkey;
 
       size_t index = 0;
@@ -250,19 +242,17 @@ void* run_client(thread_params_t* params) {
 
       if (use_atomic) {
         if (EMULATE_DRTM == 1) {
-          /*
-           * With 16B keys, DrTM's atomic field is at offset 24B. This
-           * shouldn't really matter for performance...
-           */
+          // With 16B keys, DrTM's atomic field is at offset 24B. This
+          // shouldn't really matter for performance...
           remote_address += 24;
         }
         wr[w_i].wr.atomic.remote_addr = remote_address;
         wr[w_i].wr.atomic.rkey = srv_qp[qp_i]->rkey;
         wr[w_i].wr.atomic.compare_add = 1ULL;
       } else {
-        /* We shouldn't do READs for array of counters */
+        // We shouldn't do READs for array of counters
         assert(EMULATE_DRTM == 1);
-        sgl[w_i].length = 64; /* We're emulating 16B keys, 32B vals */
+        sgl[w_i].length = 64;  // We're emulating 16B keys, 32B vals
         wr[w_i].wr.rdma.remote_addr = remote_address;
         wr[w_i].wr.rdma.rkey = srv_qp[qp_i]->rkey;
       }
@@ -283,16 +273,16 @@ void* run_client(thread_params_t* params) {
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  /* Check some macros  */
+  // Check some macros
   if (EMULATE_DRTM == 1) {
     assert(USE_RANDOM == 1);
-    assert(BUF_SIZE >= 128 * 1024 * 1024); /* Spill to DRAM */
-    assert(STRIDE_SIZE == 64); /* Restrict to 16B keys and 32B values */
+    assert(BUF_SIZE >= 128 * 1024 * 1024);  // Spill to DRAM
+    assert(STRIDE_SIZE == 64);  // Restrict to 16B keys and 32B values
     assert(UPDATE_PERCENTAGE >= 0 && UPDATE_PERCENTAGE <= 100);
   } else {
-    assert(BUF_SIZE <= 16 * 1024 * 1024); /* Fit in L3 cache */
-    assert(STRIDE_SIZE == 8);         /* If not DrTM, then array of counters */
-    assert(UPDATE_PERCENTAGE == 100); /* Counters are only updated */
+    assert(BUF_SIZE <= 16 * 1024 * 1024);  // Fit in L3 cache
+    assert(STRIDE_SIZE == 8);          // If not DrTM, then array of counters
+    assert(UPDATE_PERCENTAGE == 100);  // Counters are only updated
   }
 
   // Check the flags
@@ -304,14 +294,14 @@ int main(int argc, char** argv) {
     assert(FLAGS_num_threads >= 1);
     assert(FLAGS_postlist >= 1 && FLAGS_postlist <= MAX_POSTLIST);
 
-    assert(UNSIG_BATCH >= FLAGS_postlist);   /* Postlist check */
-    assert(HRD_SQ_DEPTH >= 2 * UNSIG_BATCH); /* Queue capacity check */
+    assert(UNSIG_BATCH >= FLAGS_postlist);   // Postlist check
+    assert(kHrdSQDepth >= 2 * UNSIG_BATCH);  // Queue capacity check
   } else {
     assert(FLAGS_num_server_ports >= 1 && FLAGS_num_server_ports <= 8);
-    FLAGS_num_threads = 1; /* Needed to allocate thread structs later */
+    FLAGS_num_threads = 1;  // Needed to allocate thread structs later
   }
 
-  /* Launch a single server thread or multiple client threads */
+  // Launch a single server thread or multiple client threads
   printf("main: Using %zu threads\n", FLAGS_num_threads);
   auto* param_arr = new thread_params_t[FLAGS_num_threads];
   std::vector<std::thread> thread_arr(FLAGS_num_threads);
@@ -322,7 +312,7 @@ int main(int argc, char** argv) {
       thread_arr[i] = std::thread(run_client, &param_arr[i]);
     }
   } else {
-    /* Only a single server thread */
+    // Only a single server thread
     param_arr[0].id = 0;
     thread_arr[0] = std::thread(run_server, &param_arr[0]);
   }

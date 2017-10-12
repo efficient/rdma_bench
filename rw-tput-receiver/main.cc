@@ -6,12 +6,12 @@
 #include <vector>
 #include "libhrd_cpp/hrd.h"
 
-#define BUF_SIZE (8 * 1024 * 1024)
-#define CACHELINE_SIZE 64
-#define MAX_POSTLIST 64
+static constexpr size_t kAppBufSize = (8 * 1024 * 1024);
+static constexpr size_t kAppCachelineSize = 64;
+static constexpr size_t kAppMaxPostlist = 64;
 
-#define UNSIG_BATCH 64
-#define UNSIG_BATCH_ (UNSIG_BATCH - 1)
+static constexpr size_t kAppUnsigBatch = 64;
+static constexpr size_t kAppUnsigBatch_ = (kAppUnsigBatch - 1);
 
 DEFINE_uint64(num_threads, 0, "Number of threads");
 DEFINE_bool(is_client, false, "Is this process a client?");
@@ -28,23 +28,23 @@ struct thread_params_t {
 };
 
 void run_server(thread_params_t* params) {
-  size_t srv_gid = params->id; /* Global ID of this server thread */
-  size_t clt_gid = srv_gid;    /* One-to-one connections */
-  size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : srv_gid % 2;
+  size_t srv_gid = params->id;  // Global ID of this server thread
+  size_t clt_gid = srv_gid;     // One-to-one connections
+  size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : (srv_gid % 2) * 2;
 
   struct hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
   conn_config.use_uc = (FLAGS_use_uc == 1);
   conn_config.prealloc_buf = nullptr;
-  conn_config.buf_size = BUF_SIZE;
+  conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = -1;
 
   auto* cb =
       hrd_ctrl_blk_init(srv_gid, ib_port_index, 9, &conn_config, nullptr);
 
-  char srv_name[HRD_QP_NAME_SIZE];
+  char srv_name[kHrdQPNameSize];
   sprintf(srv_name, "server-%zu", srv_gid);
-  char clt_name[HRD_QP_NAME_SIZE];
+  char clt_name[kHrdQPNameSize];
   sprintf(clt_name, "client-%zu", clt_gid);
 
   hrd_publish_conn_qp(cb, 0, srv_name);
@@ -71,27 +71,27 @@ void run_server(thread_params_t* params) {
 }
 
 void run_client(thread_params_t* params) {
-  size_t clt_gid = params->id; /* Global ID of this client thread */
-  size_t srv_gid = clt_gid;    /* One-to-one connections */
-  size_t clt_lid = params->id % FLAGS_num_threads; /* Local ID of this client */
-  size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : srv_gid % 2;
+  size_t clt_gid = params->id;  // Global ID of this client thread
+  size_t srv_gid = clt_gid;     // One-to-one connections
+  size_t clt_lid = params->id % FLAGS_num_threads;  // Local ID of this client
+  size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : (srv_gid % 2) * 2;
 
   hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
   conn_config.use_uc = (FLAGS_use_uc == 1);
   conn_config.prealloc_buf = nullptr;
-  conn_config.buf_size = BUF_SIZE;
+  conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = -1;
 
   auto* cb =
       hrd_ctrl_blk_init(clt_gid, ib_port_index, 9, &conn_config, nullptr);
 
   memset(const_cast<uint8_t*>(cb->conn_buf), static_cast<uint8_t>(clt_gid) + 1,
-         BUF_SIZE);
+         kAppBufSize);
 
-  char srv_name[HRD_QP_NAME_SIZE];
+  char srv_name[kHrdQPNameSize];
   sprintf(srv_name, "server-%zu", srv_gid);
-  char clt_name[HRD_QP_NAME_SIZE];
+  char clt_name[kHrdQPNameSize];
   sprintf(clt_name, "client-%zu", clt_gid);
 
   hrd_publish_conn_qp(cb, 0, clt_name);
@@ -109,36 +109,34 @@ void run_client(thread_params_t* params) {
 
   hrd_wait_till_ready(srv_name);
 
-  struct ibv_send_wr wr[MAX_POSTLIST], *bad_send_wr;
-  struct ibv_sge sgl[MAX_POSTLIST];
+  struct ibv_send_wr wr[kAppMaxPostlist], *bad_send_wr;
+  struct ibv_sge sgl[kAppMaxPostlist];
   struct ibv_wc wc;
-  size_t rolling_iter = 0; /* For performance measurement */
-  size_t nb_tx = 0;        /* For selective signaling */
+  size_t rolling_iter = 0;  // For performance measurement
+  size_t nb_tx = 0;         // For selective signaling
   int ret;
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  /*
-   * The reads/writes at different postlist positions should be done to/from
-   * different cache lines.
-   */
-  size_t offset = CACHELINE_SIZE;
-  while (offset < FLAGS_size) offset += CACHELINE_SIZE;
-  assert(offset * FLAGS_postlist <= BUF_SIZE);
+  // The reads/writes at different postlist positions should be done to/from
+  // different cache lines.
+  size_t offset = kAppCachelineSize;
+  while (offset < FLAGS_size) offset += kAppCachelineSize;
+  assert(offset * FLAGS_postlist <= kAppBufSize);
 
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
   while (1) {
-    if (rolling_iter >= M_1) {
+    if (rolling_iter >= M_8) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-      double tput = M_1 / seconds;
+      double tput = rolling_iter / seconds;
       printf("main: Client %zu: %.2f IOPS\n", clt_gid, tput);
       rolling_iter = 0;
 
-      /* Per-machine stats */
+      // Per-machine stats
       params->tput_arr[clt_lid] = tput;
       if (clt_lid == 0) {
         double machine_tput = 0;
@@ -152,15 +150,16 @@ void run_client(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    /* Post a postlist of work requests in a single ibv_post_send() */
+    // Post a postlist of work requests in a single ibv_post_send()
     for (size_t w_i = 0; w_i < FLAGS_postlist; w_i++) {
       wr[w_i].opcode = opcode;
       wr[w_i].num_sge = 1;
       wr[w_i].next = (w_i == FLAGS_postlist - 1) ? nullptr : &wr[w_i + 1];
       wr[w_i].sg_list = &sgl[w_i];
 
-      wr[w_i].send_flags = (nb_tx & UNSIG_BATCH_) == 0 ? IBV_SEND_SIGNALED : 0;
-      if ((nb_tx & UNSIG_BATCH_) == 0 && nb_tx > 0) {
+      wr[w_i].send_flags =
+          (nb_tx & kAppUnsigBatch_) == 0 ? IBV_SEND_SIGNALED : 0;
+      if ((nb_tx & kAppUnsigBatch_) == 0 && nb_tx > 0) {
         hrd_poll_cq(cb->conn_cq[0], 1, &wc);
       }
 
@@ -172,7 +171,7 @@ void run_client(thread_params_t* params) {
 
       wr[w_i].wr.rdma.remote_addr =
           srv_qp->buf_addr +
-          // offset * (fastrand(&seed) % (BUF_SIZE / offset - 1));
+          // offset * (fastrand(&seed) % (kAppBufSize / offset - 1));
           offset * w_i;
       wr[w_i].wr.rdma.rkey = srv_qp->rkey;
 
@@ -191,14 +190,14 @@ int main(int argc, char* argv[]) {
   assert(FLAGS_num_threads >= 1);
 
   if (FLAGS_is_client) {
-    if (FLAGS_do_read == 0) assert(FLAGS_size <= HRD_MAX_INLINE);
-    assert(FLAGS_postlist >= 1 && FLAGS_postlist <= MAX_POSTLIST);
+    if (FLAGS_do_read == 0) assert(FLAGS_size <= kHrdMaxInline);
+    assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist);
 
-    assert(UNSIG_BATCH >= FLAGS_postlist);   /* Postlist check */
-    assert(HRD_SQ_DEPTH >= 2 * UNSIG_BATCH); /* Queue capacity check */
+    assert(kAppUnsigBatch >= FLAGS_postlist);   // Postlist check
+    assert(kHrdSQDepth >= 2 * kAppUnsigBatch);  // Queue capacity check
   }
 
-  /* Launch a single server thread or multiple client threads */
+  // Launch a single server thread or multiple client threads
   printf("main: Using %zu threads\n", FLAGS_num_threads);
   auto* param_arr = new thread_params_t[FLAGS_num_threads];
   std::vector<std::thread> thread_arr(FLAGS_num_threads);

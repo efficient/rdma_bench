@@ -20,25 +20,21 @@
 #include <time.h>
 #include "hrd_sizes.h"
 
-#define HRD_SQ_DEPTH 256  /* Depth of all SEND queues */
-#define HRD_RQ_DEPTH 2048 /* Depth of all RECV queues */
+#define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
 
-#define HRD_DEFAULT_PSN 3185 /* PSN for all queues */
-#define HRD_DEFAULT_QKEY 0x11111111
-#define HRD_MAX_LID 256
+static constexpr size_t kHrdSQDepth = 256;   // Depth of all SEND queues
+static constexpr size_t kHrdRQDepth = 2048;  // Depth of all RECV queues
 
-#define HRD_QP_NAME_SIZE 200 /* Size (in bytes) of a queue pair name */
-#define HRD_RESERVED_NAME_PREFIX "__HRD_RESERVED_NAME_PREFIX"
+static constexpr uint32_t kHrdDefaultPSN = 3185;
+static constexpr uint32_t kHrdDefaultQKey = 0x11111111;
+static constexpr size_t kHrdMaxLID = 256;
 
-#define HRD_CONNECT_IB_ATOMICS 0
+static constexpr size_t kHrdQPNameSize = 200;
 
-/*
- * Small max_inline_data reduces the QP's max WQE size, which reduces the
- * DMA size in doorbell method of WQE fetch.
- */
-#define HRD_MAX_INLINE 60
+static constexpr bool kHrdMlx5Atomics = false;
+static constexpr size_t kHrdMaxInline = 60;
 
-/* Useful when `x = (x + 1) % N` is done in a loop */
+// Useful when `x = (x + 1) % N` is done in a loop
 #define HRD_MOD_ADD(x, N) \
   do {                    \
     x = x + 1;            \
@@ -50,7 +46,7 @@
 #define HRD_MIN(a, b) (a < b ? a : b)
 #define HRD_MAX(a, b) (a > b ? a : b)
 
-/* Compare, print, and exit */
+// Compare, print, and exit
 #define CPE(val, msg, err_code)                \
   if (val) {                                   \
     fprintf(stderr, msg);                      \
@@ -58,25 +54,22 @@
     exit(err_code);                            \
   }
 
-/* Compile time assert. !!(@condition) converts @condition into a 0/1 bool. */
-#define ct_assert(condition) ((void)sizeof(char[-1 + 2 * !!(condition)]))
-
-/* Ensure that x is between a and b, inclusive */
+// Ensure that x is between a and b, inclusive
 #define range_assert(x, a, b) (assert(x >= a && x <= b))
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #define forceinline inline __attribute__((always_inline))
-#define _unused(x) ((void)(x)) /* Make production build happy */
+#define _unused(x) ((void)(x))  // Make production build happy
 
-/* Is pointer x aligned to A-byte alignment? */
+// Is pointer x aligned to A-byte alignment?
 #define is_aligned(x, A) (((uint64_t)x) % A == 0)
 
-/* Registry info about a QP */
+// Registry info about a QP
 struct hrd_qp_attr_t {
-  char name[HRD_QP_NAME_SIZE];
+  char name[kHrdQPNameSize];
 
-  /* Info about the RDMA buffer associated with this QP */
+  // Info about the RDMA buffer associated with this QP
   uintptr_t buf_addr;
   uint32_t buf_size;
   uint32_t rkey;
@@ -86,11 +79,11 @@ struct hrd_qp_attr_t {
 };
 
 struct hrd_ctrl_blk_t {
-  size_t local_hid; /* Local ID on the machine this process runs on */
+  size_t local_hid;  // Local ID on the machine this process runs on
 
-  /* Info about the device/port to use for this control block */
-  size_t port_index;   /* User-supplied. 0-based across all devices */
-  size_t numa_node_id; /* NUMA node id */
+  // Info about the device/port to use for this control block
+  size_t port_index;    // User-supplied. 0-based across all devices
+  size_t numa_node_id;  // NUMA node id
 
   /// InfiniBand info resolved from \p phy_port, must be filled by constructor.
   struct {
@@ -100,23 +93,23 @@ struct hrd_ctrl_blk_t {
     uint16_t port_lid;           ///< LID of phy_port. 0 is invalid.
   } resolve;
 
-  struct ibv_pd* pd; /* A protection domain for this control block */
+  struct ibv_pd* pd;  // A protection domain for this control block
 
-  /* Connected QPs */
+  // Connected QPs
   bool use_uc;
   size_t num_conn_qps;
   struct ibv_qp** conn_qp;
   struct ibv_cq** conn_cq;
-  volatile uint8_t* conn_buf; /* A buffer for RDMA over RC/UC QPs */
+  volatile uint8_t* conn_buf;  // A buffer for RDMA over RC/UC QPs
   size_t conn_buf_size;
   int conn_buf_shm_key;
   struct ibv_mr* conn_buf_mr;
 
-  /* Datagram QPs */
+  // Datagram QPs
   size_t num_dgram_qps;
   struct ibv_qp** dgram_qp;
   struct ibv_cq **dgram_send_cq, **dgram_recv_cq;
-  volatile uint8_t* dgram_buf; /* A buffer for RECVs on dgram QPs */
+  volatile uint8_t* dgram_buf;  // A buffer for RECVs on dgram QPs
   size_t dgram_buf_size;
   int dgram_buf_shm_key;
   struct ibv_mr* dgram_buf_mr;
@@ -139,7 +132,7 @@ struct hrd_dgram_config_t {
   int buf_shm_key;
 };
 
-/* Major initialzation functions */
+// Major initialzation functions
 hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
                                   size_t numa_node_id,
                                   hrd_conn_config_t* conn_config,
@@ -147,7 +140,7 @@ hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
 
 int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb);
 
-/* Debug */
+// Debug
 void hrd_ibv_devinfo(void);
 
 void hrd_resolve_port_index(hrd_ctrl_blk_t* cb, size_t port_index);
@@ -157,18 +150,18 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb);
 void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t conn_qp_idx,
                     hrd_qp_attr_t* remote_qp_attr);
 
-/* Post 1 RECV for this queue pair for this buffer. Low performance. */
+// Post 1 RECV for this queue pair for this buffer. Low performance.
 void hrd_post_dgram_recv(struct ibv_qp* qp, void* buf_addr, size_t len,
                          uint32_t lkey);
 
-/* Fill @wc with @num_comps comps from this @cq. Exit on error. */
+// Fill @wc with @num_comps comps from this @cq. Exit on error.
 static inline void hrd_poll_cq(struct ibv_cq* cq, int num_comps,
                                struct ibv_wc* wc) {
   int comps = 0;
   while (comps < static_cast<int>(num_comps)) {
     int new_comps = ibv_poll_cq(cq, num_comps - comps, &wc[comps]);
     if (new_comps != 0) {
-      /* Ideally, we should check from comps -> new_comps - 1 */
+      // Ideally, we should check from comps -> new_comps - 1
       if (wc[comps].status != 0) {
         fprintf(stderr, "Bad wc status %d\n", wc[comps].status);
         exit(0);
@@ -179,7 +172,7 @@ static inline void hrd_poll_cq(struct ibv_cq* cq, int num_comps,
   }
 }
 
-/* Fill @wc with @num_comps comps from this @cq. Return -1 on error, else 0. */
+// Fill @wc with @num_comps comps from this @cq. Return -1 on error, else 0.
 static inline int hrd_poll_cq_ret(struct ibv_cq* cq, int num_comps,
                                   struct ibv_wc* wc) {
   int comps = 0;
@@ -187,27 +180,27 @@ static inline int hrd_poll_cq_ret(struct ibv_cq* cq, int num_comps,
   while (comps < num_comps) {
     int new_comps = ibv_poll_cq(cq, num_comps - comps, &wc[comps]);
     if (new_comps != 0) {
-      /* Ideally, we should check from comps -> new_comps - 1 */
+      // Ideally, we should check from comps -> new_comps - 1
       if (wc[comps].status != 0) {
         fprintf(stderr, "Bad wc status %d\n", wc[comps].status);
-        return -1; /* Return an error so the caller can clean up */
+        return -1;  // Return an error so the caller can clean up
       }
 
       comps += new_comps;
     }
   }
 
-  return 0; /* Success */
+  return 0;  // Success
 }
 
-/* Registry functions */
+// Registry functions
 void hrd_publish(const char* key, void* value, size_t len);
 int hrd_get_published(const char* key, void** value);
 
-/* Publish the nth connected queue pair from this cb with this name */
+// Publish the nth connected queue pair from this cb with this name
 void hrd_publish_conn_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name);
 
-/* Publish the nth datagram queue pair from this cb with this name */
+// Publish the nth datagram queue pair from this cb with this name
 void hrd_publish_dgram_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name);
 
 struct hrd_qp_attr_t* hrd_get_published_qp(const char* qp_name);
@@ -217,7 +210,7 @@ void hrd_wait_till_ready(const char* qp_name);
 
 void hrd_close_memcached();
 
-/* Utility functions */
+// Utility functions
 static inline uint32_t hrd_fastrand(uint64_t* seed) {
   *seed = *seed * 1103515245 + 12345;
   return static_cast<uint32_t>((*seed) >> 32);
@@ -239,4 +232,4 @@ void hrd_get_formatted_time(char* timebuf);
 void hrd_nano_sleep(size_t ns);
 char* hrd_getenv(const char* name);
 
-#endif /* HRD_H */
+#endif  // HRD_H
