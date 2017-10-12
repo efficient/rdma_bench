@@ -1,18 +1,18 @@
 #include <signal.h>
 #include "main.h"
 
-__thread FILE* out_fp = NULL; /* File to record throughput */
+__thread FILE* out_fp = NULL;  // File to record throughput
 __thread struct hrd_ctrl_blk* cb;
 __thread int machine_id;
 __thread int wrkr_gid;
 __thread int wrkr_lid;
 
-/* Is the remote QP for a local QP on the same physical machine? */
+// Is the remote QP for a local QP on the same physical machine?
 inline int is_remote_qp_on_same_physical_mc(int qp_i) {
   return (qp_i % NUM_MACHINES == machine_id);
 }
 
-/* Get the name for the QP index qp_i created by this thread */
+// Get the name for the QP index qp_i created by this thread
 void get_qp_name_local(char* namebuf, int qp_i) {
   assert(namebuf != NULL);
   assert(qp_i >= 0 && qp_i < NUM_QPS_PER_THREAD);
@@ -24,10 +24,8 @@ void get_qp_name_local(char* namebuf, int qp_i) {
           machine_id, wrkr_lid, for_phys_mc, for_vm);
 }
 
-/*
- * Get the name of the remote QP that QP index qp_i created by this thread
- * should connect to.
- */
+// Get the name of the remote QP that QP index qp_i created by this thread
+// should connect to.
 void get_qp_name_remote(char* namebuf, int qp_i) {
   assert(namebuf != NULL);
   assert(qp_i >= 0 && qp_i < NUM_QPS_PER_THREAD);
@@ -39,7 +37,7 @@ void get_qp_name_remote(char* namebuf, int qp_i) {
           for_phys_mc, wrkr_lid, machine_id, for_vm);
 }
 
-/* Record machine throughput */
+// Record machine throughput
 void record_sweep_params() {
   fprintf(out_fp, "Machine %d: sweep parameters: ", machine_id);
   fprintf(out_fp, "SIZE %d, ", SIZE);
@@ -57,7 +55,7 @@ void record_sweep_params() {
   fflush(out_fp);
 }
 
-/* Record machine throughput */
+// Record machine throughput
 void record_machine_tput(double total_tput) {
   assert(out_fp != NULL);
   char timebuf[50];
@@ -68,10 +66,8 @@ void record_machine_tput(double total_tput) {
   fflush(out_fp);
 }
 
-/*
- * In inbound mode, the machine #0 is passive. In outbound mode, all remote
- * machines are passive.
- */
+// In inbound mode, the machine #0 is passive. In outbound mode, all remote
+// machines are passive.
 void sleep_if_inbound_outbound() {
   if (ACTIVE_MODE == MODE_INBOUND && machine_id == 0) {
     sleep(100000000);
@@ -82,16 +78,16 @@ void sleep_if_inbound_outbound() {
   }
 }
 
-/* Choose a QP to send an RDMA on */
+// Choose a QP to send an RDMA on
 static inline int choose_qp(uint64_t* seed) {
   int qp_i;
 
 #if ACTIVE_MODE == MODE_INBOUND
-  /* Choose a virtual machine on the 1st machine */
-  assert(false); /* XXX: Figure this out */
+  // Choose a virtual machine on the 1st machine
+  assert(false);  // XXX: Figure this out
 #elif ACTIVE_MODE == MODE_OUTBOUND
-  /* Choose a virtual machine on a server other than the 1st machine */
-  assert(false); /* Figure this out */
+  // Choose a virtual machine on a server other than the 1st machine
+  assert(false);  // Figure this out
 #elif ACTIVE_MODE == MODE_SWARM
   qp_i = hrd_fastrand(seed) % NUM_QPS_PER_THREAD;
   while (is_remote_qp_on_same_physical_mc(qp_i)) {
@@ -115,9 +111,9 @@ void* run_worker(void* arg) {
 
   struct thread_params params = *(struct thread_params*)arg;
 
-  /* Record some globals */
-  wrkr_gid = params.wrkr_gid; /* Global ID of this thread */
-  wrkr_lid = params.wrkr_lid; /* Local ID of this thread */
+  // Record some globals
+  wrkr_gid = params.wrkr_gid;  // Global ID of this thread
+  wrkr_lid = params.wrkr_lid;  // Local ID of this thread
   assert(wrkr_lid == wrkr_gid % NUM_THREADS);
   machine_id = wrkr_gid / NUM_THREADS;
   assert(machine_id == params.machine_id);
@@ -125,7 +121,7 @@ void* run_worker(void* arg) {
   int base_port_index = params.base_port_index;
 
   int num_ports = params.num_ports;
-  assert(num_ports <= MAX_PORTS); /* Avoid dynamic alloc */
+  assert(num_ports <= MAX_PORTS);  // Avoid dynamic alloc
 
   int first_in_machine = (wrkr_gid % NUM_THREADS == 0);
 
@@ -134,14 +130,14 @@ void* run_worker(void* arg) {
   int size = params.size;
   assert(size <= BUF_SIZE);
 
-  /* We do not memcpy if DO_MEMCPY_ON_READ_COMPLETION == 0 */
+  // We do not memcpy if DO_MEMCPY_ON_READ_COMPLETION == 0
   uint8_t* memcpy_buf __attribute__((unused)) = malloc(size);
   assert(memcpy_buf != NULL);
 
   int vport_index = wrkr_lid % num_ports;
   int ib_port_index = base_port_index + vport_index;
 
-  /* Create the output file for this machine */
+  // Create the output file for this machine
   if (first_in_machine == 1) {
     char filename[100];
     sprintf(filename, "tput-out/machine-%d", machine_id);
@@ -150,24 +146,24 @@ void* run_worker(void* arg) {
     record_sweep_params(machine_id);
   }
 
-  /* Create the control block */
+  // Create the control block
   int wrkr_shm_key = WORKER_BASE_SHM_KEY + (wrkr_gid % NUM_THREADS);
-  cb = hrd_ctrl_blk_init(wrkr_gid,         /* local_hid */
-                         ib_port_index, 0, /* port_index, numa_node_id */
-                         NUM_QPS_PER_THREAD, params.use_uc, /* conn qps, uc */
+  cb = hrd_ctrl_blk_init(wrkr_gid,          // local_hid
+                         ib_port_index, 0,  // port_index, numa_node_id
+                         NUM_QPS_PER_THREAD, params.use_uc,  // conn qps, uc
                          NULL, BUF_SIZE,
-                         wrkr_shm_key, /* prealloc buf, size, key */
-                         0, 0, -1);    /* #dgram qps, buf size, shm key */
+                         wrkr_shm_key,  // prealloc buf, size, key
+                         0, 0, -1);     // #dgram qps, buf size, shm key
 
   if (params.do_read == 1) {
-    /* Set to 0 so that we can detect READ completion by polling. */
+    // Set to 0 so that we can detect READ completion by polling.
     memset((void*)cb->conn_buf, 0, BUF_SIZE);
   } else {
-    /* Set to 5 so that WRITEs show up as a weird value */
+    // Set to 5 so that WRITEs show up as a weird value
     memset((void*)cb->conn_buf, 5, BUF_SIZE);
   }
 
-  /* Publish worker QPs */
+  // Publish worker QPs
   for (i = 0; i < NUM_QPS_PER_THREAD; i++) {
     char local_qp_name[HRD_QP_NAME_SIZE];
     get_qp_name_local(local_qp_name, i);
@@ -176,10 +172,10 @@ void* run_worker(void* arg) {
   }
   printf("main: Worker %d published local QPs\n", wrkr_gid);
 
-  /* Find QPs to connect to */
+  // Find QPs to connect to
   struct hrd_qp_attr* remote_qp_arr[NUM_QPS_PER_THREAD] = {NULL};
   for (i = 0; i < NUM_QPS_PER_THREAD; i++) {
-    /* Do not connect if remote QP is on this machine */
+    // Do not connect if remote QP is on this machine
     if (is_remote_qp_on_same_physical_mc(i)) {
       continue;
     }
@@ -205,7 +201,7 @@ void* run_worker(void* arg) {
   }
 
   for (i = 0; i < NUM_QPS_PER_THREAD; i++) {
-    /* Do not connect if remote QP is on this machine */
+    // Do not connect if remote QP is on this machine
     if (is_remote_qp_on_same_physical_mc(i)) {
       continue;
     }
@@ -220,15 +216,15 @@ void* run_worker(void* arg) {
 
   printf("main: Worker %d ready\n", wrkr_gid);
 
-  /* This needs to be done after connecting with remote QPs */
+  // This needs to be done after connecting with remote QPs
   sleep_if_inbound_outbound(machine_id);
 
   struct ibv_send_wr wr, *bad_send_wr;
   struct ibv_sge sgl;
   struct ibv_wc wc;
-  long long rolling_iter = 0;                /* For performance measurement */
-  long long nb_tx[NUM_QPS_PER_THREAD] = {0}; /* Per-QP tracking for signaling */
-  long long nb_tx_tot = 0; /* For windowing (for READs only) */
+  long long rolling_iter = 0;                 // For performance measurement
+  long long nb_tx[NUM_QPS_PER_THREAD] = {0};  // Per-QP tracking for signaling
+  long long nb_tx_tot = 0;                    // For windowing (for READs only)
   int window_i = 0;
 
   struct timespec start, end;
@@ -236,10 +232,10 @@ void* run_worker(void* arg) {
 
   int opcode = params.do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
-  int qpn = 0; /* Queue pair number to read or write from */
-  int rec_qpn_arr[WINDOW_SIZE] = {0}; /* Record which QP we used */
+  int qpn = 0;  // Queue pair number to read or write from
+  int rec_qpn_arr[WINDOW_SIZE] = {0};  // Record which QP we used
 
-  /* Move fastrand for this worker */
+  // Move fastrand for this worker
   uint64_t seed __attribute__((unused)) = 0xdeadbeef;
   for (i = 0; i < wrkr_gid * 10000000; i++) {
     hrd_fastrand(&seed);
@@ -259,7 +255,7 @@ void* run_worker(void* arg) {
           wrkr_gid, tput, NUM_THREADS * NUM_QPS_PER_THREAD, WINDOW_SIZE,
           params.cnoff_arr[0].offset, memcpy_buf[0]);
 
-      /* Per-machine throughput computation */
+      // Per-machine throughput computation
       params.tput_arr[wrkr_gid % NUM_THREADS] = tput;
       if (first_in_machine == 1) {
         double machine_tput = 0;
@@ -274,17 +270,15 @@ void* run_worker(void* arg) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    /*
-     * For READs and ALLSIG WRITEs, we can restrict outstanding ops per
-     * thread to WINDOW_SIZE.
-     */
+    // For READs and ALLSIG WRITEs, we can restrict outstanding ops per
+    // thread to WINDOW_SIZE.
     if (nb_tx_tot >= WINDOW_SIZE) {
       if (ALLSIG == 0 && opcode == IBV_WR_RDMA_READ) {
         while (cb->conn_buf[window_i * size] == 0) {
-          /* Wait for a window slow to open up */
+          // Wait for a window slow to open up
         }
 
-        /* Zero-out the slot for this round */
+        // Zero-out the slot for this round
         cb->conn_buf[window_i * size] = 0;
 
 #if DO_MEMCPY_ON_READ_COMPLETION
@@ -302,7 +296,7 @@ void* run_worker(void* arg) {
       }
     }
 
-    /* Choose the next machine to send RDMA to and record it */
+    // Choose the next machine to send RDMA to and record it
     qpn = choose_qp(&seed);
     rec_qpn_arr[window_i] = qpn;
 
@@ -328,20 +322,18 @@ void* run_worker(void* arg) {
 
     wr.send_flags |= (params.do_read == 0) ? IBV_SEND_INLINE : 0;
 
-    /*
-     * Aligning local/remote offset to 64-byte boundary REDUCES performance
-     * significantly (similar to atomics).
-     */
+    // Aligning local/remote offset to 64-byte boundary REDUCES performance
+    // significantly (similar to atomics).
     int _offset = (hrd_fastrand(&seed) & BUF_SIZE_);
     while (_offset >= BUF_SIZE - size) {
       _offset = (hrd_fastrand(&seed) & BUF_SIZE_);
     }
 
 #if ALLSIG == 0
-    /* Use a predictable address to make polling easy */
+    // Use a predictable address to make polling easy
     sgl.addr = (uint64_t)(uintptr_t)&cb->conn_buf[window_i * size];
 #else
-    /* We'll use CQE to detect comp; using random address improves perf */
+    // We'll use CQE to detect comp; using random address improves perf
     sgl.addr = (uint64_t)(uintptr_t)&cb->conn_buf[_offset];
 #endif
 

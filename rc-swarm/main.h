@@ -1,44 +1,40 @@
-#include "hrd.h"
+#include "libhrd_cpp/hrd.h"
 #include "sweep.h"
 
 // Performance parameters begin
 
-/* Include the overhead of memcpy-ing the READ data bc of cacheline versions */
+// Include the overhead of memcpy-ing the READ data bc of cacheline versions
 #define DO_MEMCPY_ON_READ_COMPLETION 0
 
-/* If 1, all RDMA are signaled and UNSIG_BATCH is ignored */
+// If 1, all RDMA are signaled and UNSIG_BATCH is ignored
 #define ALLSIG 1
 
-/*
- * If 1, workers increment the shared channel offsets before WRITEs. This
- * only makes sense for swarm mode.
- */
+// If 1, workers increment the shared channel offsets before WRITEs. This
+// only makes sense for swarm mode.
 #define ENABLE_SHARED_CHANNELS 0
 
 // Performance parameters end
 
-#define MODE_OUTBOUND 0 /* Only machine 0 sends RDMA into the swarm */
-#define MODE_INBOUND 1  /* All machines send RDMA to machine 0 only */
-#define MODE_SWARM 2    /* Everyone sends RDMA to everyone */
+#define MODE_OUTBOUND 0  // Only machine 0 sends RDMA into the swarm
+#define MODE_INBOUND 1   // All machines send RDMA to machine 0 only
+#define MODE_SWARM 2     // Everyone sends RDMA to everyone
 
-#define ACTIVE_MODE MODE_SWARM /* The current mode */
+#define ACTIVE_MODE MODE_SWARM  // The current mode
 
-/* Conn buf used by workers */
+// Conn buf used by workers
 #define BUF_SIZE M_2
 #define BUF_SIZE_ (BUF_SIZE - 1)
 
-/* SHM keys used by workers */
+// SHM keys used by workers
 #define WORKER_BASE_SHM_KEY 24
 
-/*
- * Number of outstanding requests kept by a worker thread  across all QPs.
- * This is only used for READs where we can detect completion by polling on
- * a READ's destination buffer.
- *
- * For WRITEs, this is hard to do unless we make every send() signaled. So,
- * the number of per-thread outstanding operations per thread with WRITEs is
- * O(NUM_CLIENTS * UNSIG_BATCH).
- */
+// Number of outstanding requests kept by a worker thread  across all QPs.
+// This is only used for READs where we can detect completion by polling on
+// a READ's destination buffer.
+//
+// For WRITEs, this is hard to do unless we make every send() signaled. So,
+// the number of per-thread outstanding operations per thread with WRITEs is
+// O(NUM_CLIENTS * UNSIG_BATCH).
 //#define WINDOW_SIZE 44 // Defined in sweep.h
 
 #define NUM_MACHINES 11
@@ -48,11 +44,11 @@
 
 #define UNSIG_BATCH_ (UNSIG_BATCH - 1)
 
-/* Upper bounds to avoid dynamic alloc */
+// Upper bounds to avoid dynamic alloc
 #define MAX_PORTS 2
-#define MAX_MACHINES 256 /* Maximum machines in the swarm */
+#define MAX_MACHINES 256  // Maximum machines in the swarm
 
-#define NUM_CHANNELS 128 /* Number of channels a worker writes to */
+#define NUM_CHANNELS 128  // Number of channels a worker writes to
 #define NUM_CHANNELS_ (NUM_CHANNELS - 1)
 struct channel_offset {
   long long offset;
