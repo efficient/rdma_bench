@@ -77,7 +77,9 @@ set(SOURCES
   libhrd_cpp/hrd_conn.cc
   libhrd_cpp/hrd_util.cc)
 
-set(APP rc-swarm)
+#set(APP rc-swarm)
+#set(APP rw-tput-receiver)
+set(APP atomics-sequencer)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/${APP})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/${APP})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/${APP})

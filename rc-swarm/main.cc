@@ -15,7 +15,7 @@ inline bool is_remote_qp_on_same_physical_mc(size_t qp_i) {
 // Get the name for the QP index qp_i created by this thread
 void get_qp_name_local(char* namebuf, size_t qp_i) {
   assert(namebuf != nullptr);
-  assert(qp_i >= 0 && qp_i < kAppNumQPsPerThread);
+  assert(qp_i < kAppNumQPsPerThread);
 
   size_t for_phys_mc = qp_i % kAppNumMachines;
   size_t for_vm = qp_i / kAppNumMachines;
@@ -28,7 +28,7 @@ void get_qp_name_local(char* namebuf, size_t qp_i) {
 // should connect to.
 void get_qp_name_remote(char* namebuf, size_t qp_i) {
   assert(namebuf != nullptr);
-  assert(qp_i >= 0 && qp_i < kAppNumQPsPerThread);
+  assert(qp_i < kAppNumQPsPerThread);
 
   size_t for_phys_mc = qp_i % kAppNumMachines;
   size_t for_vm = qp_i / kAppNumMachines;
@@ -287,11 +287,11 @@ void run_worker(thread_params_t* params) {
     //	tl_params.wrkr_gid, nb_tx_tot, qpn);
 
     int ret = ibv_post_send(tl_cb->conn_qp[qpn], &wr, &bad_send_wr);
-    CPE(ret, "ibv_post_send error", ret);
+    rt_assert(ret == 0, "ibv_post_send error");
 
     rolling_iter++;
     nb_tx_tot++;
-    HRD_MOD_ADD(window_i, kAppWindowSize);
+    mod_add_one<kAppWindowSize>(window_i);
   }
 }
 

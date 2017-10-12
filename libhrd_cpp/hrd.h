@@ -3,6 +3,9 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <infiniband/verbs.h>
+#include <libmemcached/memcached.h>
+#include <malloc.h>
 #include <numaif.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -12,12 +15,10 @@
 #include <sys/shm.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <unistd.h>
-
-#include <infiniband/verbs.h>
-#include <libmemcached/memcached.h>
-#include <malloc.h>
 #include <time.h>
+#include <unistd.h>
+#include <stdexcept>
+#include <string>
 #include "hrd_sizes.h"
 
 #define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
@@ -34,36 +35,21 @@ static constexpr size_t kHrdQPNameSize = 200;
 static constexpr bool kHrdMlx5Atomics = false;
 static constexpr size_t kHrdMaxInline = 60;
 
-// Useful when `x = (x + 1) % N` is done in a loop
-#define HRD_MOD_ADD(x, N) \
-  do {                    \
-    x = x + 1;            \
-    if (x == N) {         \
-      x = 0;              \
-    }                     \
-  } while (0)
-
-#define HRD_MIN(a, b) (a < b ? a : b)
-#define HRD_MAX(a, b) (a > b ? a : b)
-
-// Compare, print, and exit
-#define CPE(val, msg, err_code)                \
-  if (val) {                                   \
-    fprintf(stderr, msg);                      \
-    fprintf(stderr, " Error %d \n", err_code); \
-    exit(err_code);                            \
-  }
-
-// Ensure that x is between a and b, inclusive
-#define range_assert(x, a, b) (assert(x >= a && x <= b))
+/// Optimized (x + 1) % N
+template <size_t N>
+static constexpr size_t mod_add_one(size_t x) {
+  return (x + 1) == N ? 0 : x + 1;
+}
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #define forceinline inline __attribute__((always_inline))
 #define _unused(x) ((void)(x))  // Make production build happy
 
-// Is pointer x aligned to A-byte alignment?
-#define is_aligned(x, A) (((uint64_t)x) % A == 0)
+/// Check a condition at runtime. If the condition is false, throw exception.
+static inline void rt_assert(bool condition, std::string throw_str) {
+  if (unlikely(!condition)) throw std::runtime_error(throw_str);
+}
 
 // Registry info about a QP
 struct hrd_qp_attr_t {

@@ -179,7 +179,7 @@ void run_client(thread_params_t* params) {
     }
 
     ret = ibv_post_send(cb->conn_qp[0], &wr[0], &bad_send_wr);
-    CPE(ret, "ibv_post_send error", ret);
+    rt_assert(ret == 0, "ibv_post_send error");
 
     rolling_iter += FLAGS_postlist;
   }

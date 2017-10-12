@@ -20,7 +20,7 @@ DEFINE_uint64(postlist, 0, "Postlist size");
 
 // A single server thread creates all QPs
 void* run_server(thread_params_t* params) {
-  size_t total_srv_qps = NUM_CLIENTS * QPS_PER_CLIENT;
+  size_t total_srv_qps = kAppNumClients * kAppQPsPerClient;
   size_t srv_gid = params->id;  // Global ID of this server thread
 
   // Create one control block per port. Each control block has enough QPs
@@ -32,13 +32,13 @@ void* run_server(thread_params_t* params) {
   for (size_t i = 0; i < FLAGS_num_server_ports; i++) {
     volatile uint8_t* prealloc_buf = (i == 0 ? nullptr : cb[0]->conn_buf);
     size_t ib_port_index = FLAGS_base_port_index + i;
-    int shm_key = (i == 0 ? SERVER_SHM_KEY : -1);
+    int shm_key = (i == 0 ? kAppServerSHMKey : -1);
 
     hrd_conn_config_t conn_config;
     conn_config.num_qps = total_srv_qps;
     conn_config.use_uc = false;
     conn_config.prealloc_buf = prealloc_buf;
-    conn_config.buf_size = BUF_SIZE;
+    conn_config.buf_size = kAppBufSize;
     conn_config.buf_shm_key = shm_key;
 
     cb[i] = hrd_ctrl_blk_init(srv_gid + i,       // local hid
@@ -57,8 +57,8 @@ void* run_server(thread_params_t* params) {
 
   hrd_red_printf("main: Server published all QPs. Waiting for clients..\n");
 
-  for (size_t i = 0; i < NUM_CLIENTS; i++) {
-    for (size_t j = 0; j < QPS_PER_CLIENT; j++) {
+  for (size_t i = 0; i < kAppNumClients; i++) {
+    for (size_t j = 0; j < kAppQPsPerClient; j++) {
       // Iterate over all client QPs
       char clt_name[kHrdQPNameSize];
       sprintf(clt_name, "client-%zu-%zu", i, j);
@@ -71,7 +71,7 @@ void* run_server(thread_params_t* params) {
 
       // Calculate the control block and QP to use for this client
       size_t cb_i = i % FLAGS_num_server_ports;
-      size_t qp_i = (i * QPS_PER_CLIENT) + j;
+      size_t qp_i = (i * kAppQPsPerClient) + j;
 
       printf("main: Connecting client %zu's QP %zu --- port %zu QP %zu.\n", i,
              j, cb_i, qp_i);
@@ -101,10 +101,10 @@ void* run_client(thread_params_t* params) {
   size_t ib_port_index =
       FLAGS_base_port_index + clt_gid % FLAGS_num_client_ports;
 
-  // Don't use BUF_SIZE at client - it can be large and libhrd zeros it out,
+  // Don't use kAppBufSize at client - it can be large and libhrd zeros it out,
   // which can take time. We don't need a large buffer at clients.
   hrd_conn_config_t conn_config;
-  conn_config.num_qps = QPS_PER_CLIENT;
+  conn_config.num_qps = kAppQPsPerClient;
   conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
   conn_config.buf_size = 4096;
@@ -115,12 +115,12 @@ void* run_client(thread_params_t* params) {
 
   memset(const_cast<uint8_t*>(cb->conn_buf), 0, 4096);
 
-  hrd_qp_attr_t* srv_qp[QPS_PER_CLIENT];
+  hrd_qp_attr_t* srv_qp[kAppQPsPerClient];
 
-  for (size_t i = 0; i < QPS_PER_CLIENT; i++) {
+  for (size_t i = 0; i < kAppQPsPerClient; i++) {
     // Compute the server port (or control block) and QP to use
     size_t srv_cb_i = clt_gid % FLAGS_num_server_ports;
-    size_t srv_qp_i = (clt_gid * QPS_PER_CLIENT) + i;
+    size_t srv_qp_i = (clt_gid * kAppQPsPerClient) + i;
     char srv_name[kHrdQPNameSize];
     sprintf(srv_name, "server-%zu-%zu", srv_cb_i, srv_qp_i);
 
@@ -146,11 +146,11 @@ void* run_client(thread_params_t* params) {
   }
 
   // Datapath
-  struct ibv_send_wr wr[MAX_POSTLIST], *bad_send_wr;
-  struct ibv_sge sgl[MAX_POSTLIST];
+  struct ibv_send_wr wr[kAppMaxPostlist], *bad_send_wr;
+  struct ibv_sge sgl[kAppMaxPostlist];
   struct ibv_wc wc;
-  size_t w_i = 0;                      // Window index
-  size_t nb_tx[QPS_PER_CLIENT] = {0};  // For selective signaling
+  size_t w_i = 0;                        // Window index
+  size_t nb_tx[kAppQPsPerClient] = {0};  // For selective signaling
   int ret;
 
   size_t rolling_iter = 0;  // For performance measurement
@@ -223,8 +223,8 @@ void* run_client(thread_params_t* params) {
       wr[w_i].sg_list = &sgl[w_i];
 
       wr[w_i].send_flags =
-          (nb_tx[qp_i] & UNSIG_BATCH_) == 0 ? IBV_SEND_SIGNALED : 0;
-      if ((nb_tx[qp_i] & UNSIG_BATCH_) == 0 && nb_tx[qp_i] > 0) {
+          (nb_tx[qp_i] & kAppUnsigBatch_) == 0 ? IBV_SEND_SIGNALED : 0;
+      if ((nb_tx[qp_i] & kAppUnsigBatch_) == 0 && nb_tx[qp_i] > 0) {
         hrd_poll_cq(cb->conn_cq[qp_i], 1, &wc);
       }
 
@@ -233,15 +233,15 @@ void* run_client(thread_params_t* params) {
       sgl[w_i].lkey = cb->conn_buf_mr->lkey;
 
       size_t index = 0;
-      if (USE_RANDOM == 1) {
-        index = hrd_fastrand(&seed) % (BUF_SIZE / STRIDE_SIZE);
+      if (kAppUseRandom) {
+        index = hrd_fastrand(&seed) % (kAppBufSize / kAppStrideSize);
       }
 
-      uint64_t remote_address = srv_qp[qp_i]->buf_addr + index * STRIDE_SIZE;
-      assert(remote_address % STRIDE_SIZE == 0);
+      uint64_t remote_address = srv_qp[qp_i]->buf_addr + index * kAppStrideSize;
+      assert(remote_address % kAppStrideSize == 0);
 
       if (use_atomic) {
-        if (EMULATE_DRTM == 1) {
+        if (kAppEmulateDrTM) {
           // With 16B keys, DrTM's atomic field is at offset 24B. This
           // shouldn't really matter for performance...
           remote_address += 24;
@@ -251,7 +251,7 @@ void* run_client(thread_params_t* params) {
         wr[w_i].wr.atomic.compare_add = 1ULL;
       } else {
         // We shouldn't do READs for array of counters
-        assert(EMULATE_DRTM == 1);
+        assert(kAppEmulateDrTM);
         sgl[w_i].length = 64;  // We're emulating 16B keys, 32B vals
         wr[w_i].wr.rdma.remote_addr = remote_address;
         wr[w_i].wr.rdma.rkey = srv_qp[qp_i]->rkey;
@@ -261,9 +261,9 @@ void* run_client(thread_params_t* params) {
     }
 
     ret = ibv_post_send(cb->conn_qp[qp_i], &wr[0], &bad_send_wr);
-    CPE(ret, "ibv_post_send error", ret);
+    rt_assert(ret == 0, "ibv_post_send error");
 
-    HRD_MOD_ADD(qp_i, QPS_PER_CLIENT);
+    mod_add_one<kAppQPsPerClient>(qp_i);
     rolling_iter += FLAGS_postlist;
   }
 
@@ -274,15 +274,15 @@ int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   // Check some macros
-  if (EMULATE_DRTM == 1) {
-    assert(USE_RANDOM == 1);
-    assert(BUF_SIZE >= 128 * 1024 * 1024);  // Spill to DRAM
-    assert(STRIDE_SIZE == 64);  // Restrict to 16B keys and 32B values
-    assert(UPDATE_PERCENTAGE >= 0 && UPDATE_PERCENTAGE <= 100);
+  if (kAppEmulateDrTM) {
+    assert(kAppUseRandom);
+    assert(kAppBufSize >= 128 * 1024 * 1024);  // Spill to DRAM
+    assert(kAppStrideSize == 64);  // Restrict to 16B keys and 32B values
+    assert(kAppUpdatePercentage >= 0 && kAppUpdatePercentage <= 100);
   } else {
-    assert(BUF_SIZE <= 16 * 1024 * 1024);  // Fit in L3 cache
-    assert(STRIDE_SIZE == 8);          // If not DrTM, then array of counters
-    assert(UPDATE_PERCENTAGE == 100);  // Counters are only updated
+    assert(kAppBufSize <= 16 * 1024 * 1024);  // Fit in L3 cache
+    assert(kAppStrideSize == 8);          // If not DrTM, then array of counters
+    assert(kAppUpdatePercentage == 100);  // Counters are only updated
   }
 
   // Check the flags
@@ -292,10 +292,10 @@ int main(int argc, char** argv) {
     assert(FLAGS_num_server_ports >= 1 && FLAGS_num_server_ports <= 8);
     assert(FLAGS_num_client_ports >= 1 && FLAGS_num_client_ports <= 8);
     assert(FLAGS_num_threads >= 1);
-    assert(FLAGS_postlist >= 1 && FLAGS_postlist <= MAX_POSTLIST);
+    assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist);
 
-    assert(UNSIG_BATCH >= FLAGS_postlist);   // Postlist check
-    assert(kHrdSQDepth >= 2 * UNSIG_BATCH);  // Queue capacity check
+    assert(kAppUnsigBatch >= FLAGS_postlist);   // Postlist check
+    assert(kHrdSQDepth >= 2 * kAppUnsigBatch);  // Queue capacity check
   } else {
     assert(FLAGS_num_server_ports >= 1 && FLAGS_num_server_ports <= 8);
     FLAGS_num_threads = 1;  // Needed to allocate thread structs later

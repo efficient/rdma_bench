@@ -14,11 +14,11 @@ void hrd_ibv_devinfo(void) {
   hrd_red_printf("HRD: printing IB dev info\n");
 
   dev_list = ibv_get_device_list(&num_devices);
-  CPE(!dev_list, "Failed to get IB devices list", 0);
+  assert(dev_list != nullptr);
 
   for (dev_i = 0; dev_i < num_devices; dev_i++) {
     ctx = ibv_open_device(dev_list[dev_i]);
-    CPE(!ctx, "Couldn't get context", 0);
+    assert(ctx != nullptr);
 
     memset(&device_attr, 0, sizeof(device_attr));
     if (ibv_query_device(ctx, &device_attr)) {
@@ -54,13 +54,13 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
   int num_devices = 0;
 
   dev_list = ibv_get_device_list(&num_devices);
-  CPE(!dev_list, "HRD: Failed to get IB devices list", 0);
+  assert(dev_list != nullptr);
 
   int ports_to_discover = port_index;
 
   for (int dev_i = 0; dev_i < num_devices; dev_i++) {
     struct ibv_context* ctx = ibv_open_device(dev_list[dev_i]);
-    CPE(!ctx, "HRD: Couldn't open device", 0);
+    assert(ctx != nullptr);
 
     struct ibv_device_attr device_attr;
     memset(&device_attr, 0, sizeof(device_attr));
@@ -290,7 +290,7 @@ memcached_st* hrd_create_memc() {
   servers = memcached_server_list_append(servers, registry_ip,
                                          MEMCACHED_DEFAULT_PORT, &rc);
   rc = memcached_server_push(memc, servers);
-  CPE(rc != MEMCACHED_SUCCESS, "Couldn't add memcached server.\n", -1);
+  rt_assert(rc == MEMCACHED_SUCCESS, "Couldn't add memcached server");
 
   return memc;
 }
@@ -303,12 +303,9 @@ void hrd_close_memcached() {
 // Insert key -> value mapping into memcached running at HRD_REGISTRY_IP.
 void hrd_publish(const char* key, void* value, size_t len) {
   assert(key != nullptr && value != nullptr && len > 0);
+  if (memc == nullptr) memc = hrd_create_memc();
+
   memcached_return rc;
-
-  if (memc == nullptr) {
-    memc = hrd_create_memc();
-  }
-
   rc = memcached_set(memc, key, strlen(key),
                      reinterpret_cast<const char*>(value), len,
                      static_cast<time_t>(0), static_cast<uint32_t>(0));
@@ -332,9 +329,7 @@ void hrd_publish(const char* key, void* value, size_t len) {
 // environment.
 int hrd_get_published(const char* key, void** value) {
   assert(key != nullptr);
-  if (memc == nullptr) {
-    memc = hrd_create_memc();
-  }
+  if (memc == nullptr) memc = hrd_create_memc();
 
   memcached_return rc;
   size_t value_length;
