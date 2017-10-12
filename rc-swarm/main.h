@@ -1,32 +1,20 @@
+#ifndef MAIN_H
+#define MAIN_H
+
+#include <gflags/gflags.h>
+#include <stdlib.h>
+#include <array>
 #include "libhrd_cpp/hrd.h"
 #include "sweep.h"
 
-// Performance parameters begin
-
-// Include the overhead of memcpy-ing the READ data bc of cacheline versions
-#define DO_MEMCPY_ON_READ_COMPLETION 0
-
 // If 1, all RDMA are signaled and UNSIG_BATCH is ignored
-#define ALLSIG 1
+static constexpr bool kAppAllsig = true;
 
-// If 1, workers increment the shared channel offsets before WRITEs. This
-// only makes sense for swarm mode.
-#define ENABLE_SHARED_CHANNELS 0
-
-// Performance parameters end
-
-#define MODE_OUTBOUND 0  // Only machine 0 sends RDMA into the swarm
-#define MODE_INBOUND 1   // All machines send RDMA to machine 0 only
-#define MODE_SWARM 2     // Everyone sends RDMA to everyone
-
-#define ACTIVE_MODE MODE_SWARM  // The current mode
-
-// Conn buf used by workers
-#define BUF_SIZE M_2
-#define BUF_SIZE_ (BUF_SIZE - 1)
+static constexpr size_t kAppBufSize = M_2;
+static constexpr size_t kAppBufSize_ = (kAppBufSize - 1);
 
 // SHM keys used by workers
-#define WORKER_BASE_SHM_KEY 24
+static constexpr int kAppWorkerBaseSHMKey = 24;
 
 // Number of outstanding requests kept by a worker thread  across all QPs.
 // This is only used for READs where we can detect completion by polling on
@@ -35,38 +23,51 @@
 // For WRITEs, this is hard to do unless we make every send() signaled. So,
 // the number of per-thread outstanding operations per thread with WRITEs is
 // O(NUM_CLIENTS * UNSIG_BATCH).
-//#define WINDOW_SIZE 44 // Defined in sweep.h
 
-#define NUM_MACHINES 11
-#define NUM_VIRTUAL_MACHINES (NUM_MACHINES * VM_PER_MACHINE)
-#define NUM_THREADS (NUM_WORKERS / NUM_MACHINES)
-#define NUM_QPS_PER_THREAD (NUM_VIRTUAL_MACHINES)
+static constexpr size_t kAppNumMachines = 8;
+static constexpr size_t kAppNumVirtualMachines =
+    kAppNumMachines * kAppVMPerMachine;
 
-#define UNSIG_BATCH_ (UNSIG_BATCH - 1)
+static constexpr size_t kAppNumThreads = kAppNumWorkers / kAppNumMachines;
+static constexpr size_t kAppNumQPsPerThread = kAppNumVirtualMachines;
+static constexpr size_t kAppUnsigBatch_ = (kAppUnsigBatch - 1);
 
 // Upper bounds to avoid dynamic alloc
-#define MAX_PORTS 2
-#define MAX_MACHINES 256  // Maximum machines in the swarm
+static constexpr size_t kAppMaxPorts = 2;
+static constexpr size_t kAppMaxMachines = 256;  // Max machines in the swarm
 
-#define NUM_CHANNELS 128  // Number of channels a worker writes to
-#define NUM_CHANNELS_ (NUM_CHANNELS - 1)
-struct channel_offset {
-  long long offset;
-  long long pad[7];
-};
+// Checks
+static_assert(kAppNumWorkers % kAppNumMachines == 0, "");
+static_assert(kAppBufSize >= M_2, "");    // Large buffer, more parallelism
+static_assert(kAppNumMachines >= 2, "");  // At least 2 machines
+static_assert(kAppNumWorkers % kAppNumMachines == 0, "");  // kAppNumThreads
+static_assert(kHrdSQDepth == 128, "");                 // Reduce cache pressure
+static_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "");  // Queue capacity check
 
-struct thread_params {
-  int wrkr_gid;
-  int wrkr_lid;
-  int machine_id;
-  int base_port_index;
-  int num_ports;
-  int use_uc;
-  int size;
-  int do_read;
-
-  struct channel_offset* cnoff_arr;
+struct thread_params_t {
+  size_t wrkr_gid;
+  size_t wrkr_lid;
   double* tput_arr;
 };
 
-void* run_worker(void* arg);
+void run_worker(thread_params_t* params);
+
+DEFINE_uint64(numa_node, 0, "NUMA node");
+DEFINE_uint64(use_uc, 0, "Use UC?");
+DEFINE_uint64(base_port_index, 0, "Base port index");
+DEFINE_uint64(num_ports, 0, "Number of ports");
+DEFINE_uint64(machine_id, 0, "ID of this machine");
+DEFINE_uint64(do_read, 0, "Use RDMA READs?");
+
+static bool validate_do_read(const char*, uint64_t do_read) {
+  // Size checks based on opcode. This is not UD, so no 0-byte read/write.
+  if (do_read == 0) {  // For WRITEs
+    return kAppSize >= 1 && kAppSize <= kHrdMaxInline;
+  } else {
+    return kAppSize >= 1 && kAppSize <= kAppBufSize;
+  }
+}
+
+DEFINE_validator(do_read, &validate_do_read);
+
+#endif  // MAIN_H
