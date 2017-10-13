@@ -7,16 +7,10 @@
 #include "libhrd_cpp/hrd.h"
 #include "sweep.h"
 
-static constexpr size_t kAppNumMachines = 4;  // Physical machines or processes
-
 // Total number of physical machines or processes simulated
-static constexpr size_t kAppNumVMs = kAppNumMachines * kAppVMsPerMachine;
-
 static constexpr size_t kAppNumThreads = kAppNumWorkers / kAppNumMachines;
-static constexpr size_t kAppNumQPsPerThread = kAppNumVMs;
-
-// If 1, all RDMA are signaled and kAppUnsigBatch is ignored
-static constexpr bool kAppAllsig = true;
+static constexpr size_t kAppNumQPsPerThread =
+    kAppNumMachines * kAppVMsPerMachine;
 
 static constexpr size_t kAppBufSize = MB(2);
 static constexpr size_t kAppBufSize_ = (kAppBufSize - 1);
@@ -40,7 +34,6 @@ static_assert(kAppNumWorkers % kAppNumMachines == 0, "");
 static_assert(kAppBufSize >= MB(2), "");  // Large buffer, more parallelism
 static_assert(kAppNumMachines >= 2, "");  // At least 2 machines
 static_assert(kAppNumWorkers % kAppNumMachines == 0, "");  // kAppNumThreads
-static_assert(kHrdSQDepth == 128, "");                 // Reduce cache pressure
 static_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "");  // Queue capacity check
 
 struct thread_params_t {

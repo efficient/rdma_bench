@@ -86,7 +86,7 @@ void run_worker(thread_params_t* params) {
   printf("Worker %zu: use_uc = %zu\n", tl_params.wrkr_gid, FLAGS_use_uc);
 
   size_t vport_index = tl_params.wrkr_lid % FLAGS_num_ports;
-  size_t ib_port_index = FLAGS_base_port_index + vport_index;
+  size_t ib_port_index = FLAGS_base_port_index + vport_index * 2;
 
   // Create the output file for this machine
   if (first_in_machine == 1) {
@@ -187,6 +187,8 @@ void run_worker(thread_params_t* params) {
     hrd_fastrand(&seed);
   }
 
+  // if (FLAGS_machine_id != 0) sleep(100000);
+
   while (1) {
     if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
@@ -269,6 +271,7 @@ void run_worker(thread_params_t* params) {
     size_t _offset = (hrd_fastrand(&seed) & kAppBufSize_);
     while (_offset >= kAppBufSize - kAppRDMASize) {
       _offset = (hrd_fastrand(&seed) & kAppBufSize_);
+      _offset = round_up<64, size_t>(_offset);
     }
 
     if (!kAppAllsig) {

@@ -22,8 +22,8 @@
 
 #define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
 
-static constexpr size_t kHrdSQDepth = 128;   // Depth of all SEND queues
-static constexpr size_t kHrdRQDepth = 2048;  // Depth of all RECV queues
+static constexpr size_t kHrdSQDepth = 128;  // Depth of all SEND queues
+static constexpr size_t kHrdRQDepth = 4;    // Depth of all RECV queues
 
 static constexpr uint32_t kHrdInvalidNUMANode = 9;
 static constexpr uint32_t kHrdDefaultPSN = 3185;
@@ -54,6 +54,18 @@ static constexpr size_t mod_add_one(size_t x) {
 /// Check a condition at runtime. If the condition is false, throw exception.
 static inline void rt_assert(bool condition, std::string throw_str) {
   if (unlikely(!condition)) throw std::runtime_error(throw_str);
+}
+
+template <typename T>
+static constexpr inline bool is_power_of_two(T x) {
+  return x && ((x & T(x - 1)) == 0);
+}
+
+template <uint64_t power_of_two_number, typename T>
+static constexpr inline T round_up(T x) {
+  static_assert(is_power_of_two(power_of_two_number),
+                "PowerOfTwoNumber must be a power of 2");
+  return ((x) + T(power_of_two_number - 1)) & (~T(power_of_two_number - 1));
 }
 
 // Registry info about a QP
