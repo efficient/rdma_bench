@@ -1,1 +1,1 @@
-( cd ../; make )
+( cd ../; make rw-tput-receiver )

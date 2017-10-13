@@ -1,1 +1,1 @@
-( cd ../; make )
+( cd ../; make atomics-sequencer)
