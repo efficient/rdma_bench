@@ -15,7 +15,7 @@ static constexpr size_t kAppNumVMs = kAppNumMachines * kAppVMsPerMachine;
 static constexpr size_t kAppNumThreads = kAppNumWorkers / kAppNumMachines;
 static constexpr size_t kAppNumQPsPerThread = kAppNumVMs;
 
-// If 1, all RDMA are signaled and UNSIG_BATCH is ignored
+// If 1, all RDMA are signaled and kAppUnsigBatch is ignored
 static constexpr bool kAppAllsig = true;
 
 static constexpr size_t kAppBufSize = MB(2);
