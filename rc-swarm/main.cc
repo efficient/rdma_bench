@@ -40,7 +40,7 @@ void get_qp_name_remote(char* namebuf, size_t qp_i) {
 // Record machine throughput
 void record_sweep_params() {
   fprintf(tl_out_fp, "Machine %zu: sweep parameters: ", FLAGS_machine_id);
-  fprintf(tl_out_fp, "kAppSize %zu, ", kAppSize);
+  fprintf(tl_out_fp, "kAppRDMASize %zu, ", kAppRDMASize);
   fprintf(tl_out_fp, "kAppWindowSize %zu, ", kAppWindowSize);
   fprintf(tl_out_fp, "kAppUnsigBatch %zu, ", kAppUnsigBatch);
   fprintf(tl_out_fp, "kAppAllsig %u, ", kAppAllsig);
@@ -183,8 +183,9 @@ void run_worker(thread_params_t* params) {
 
   // Move fastrand for this worker
   uint64_t seed __attribute__((unused)) = 0xdeadbeef;
-  for (size_t i = 0; i < tl_params.wrkr_gid * 10000000; i++)
+  for (size_t i = 0; i < tl_params.wrkr_gid * 10000000; i++) {
     hrd_fastrand(&seed);
+  }
 
   while (1) {
     if (rolling_iter >= MB(2)) {
@@ -218,11 +219,11 @@ void run_worker(thread_params_t* params) {
     // thread to kAppWindowSize.
     if (nb_tx_tot >= kAppWindowSize) {
       if (kAppAllsig == 0 && opcode == IBV_WR_RDMA_READ) {
-        while (tl_cb->conn_buf[window_i * kAppSize] == 0) {
+        while (tl_cb->conn_buf[window_i * kAppRDMASize] == 0) {
         }  // Wait
 
         // Zero-out the slot for this round
-        tl_cb->conn_buf[window_i * kAppSize] = 0;
+        tl_cb->conn_buf[window_i * kAppRDMASize] = 0;
       } else if (kAppAllsig == 1) {
         size_t qpn_to_poll = rec_qpn_arr[window_i];
         int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn_to_poll], 1, &wc);
@@ -264,20 +265,20 @@ void run_worker(thread_params_t* params) {
     // Aligning local/remote offset to 64-byte boundary REDUCES performance
     // significantly (similar to atomics).
     size_t _offset = (hrd_fastrand(&seed) & kAppBufSize_);
-    while (_offset >= kAppBufSize - kAppSize) {
+    while (_offset >= kAppBufSize - kAppRDMASize) {
       _offset = (hrd_fastrand(&seed) & kAppBufSize_);
     }
 
 #if kAppAllsig == 0
     // Use a predictable address to make polling easy
     sgl.addr =
-        reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppSize]);
+        reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppRDMASize]);
 #else
     // We'll use CQE to detect comp; using random address improves perf
     sgl.addr = reinterpret_cast<uint64_t>(&tl_cb->conn_buf[_offset]);
 #endif
 
-    sgl.length = kAppSize;
+    sgl.length = kAppRDMASize;
     sgl.lkey = tl_cb->conn_buf_mr->lkey;
 
     wr.wr.rdma.remote_addr = remote_qp_arr[qpn]->buf_addr + _offset;

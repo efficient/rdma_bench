@@ -338,78 +338,79 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
         ibv_create_cq(cb->resolve.ib_ctx, kHrdSQDepth, nullptr, nullptr, 0);
     assert(cb->conn_cq[i] != nullptr);
 
-    if (!kHrdMlx5Atomics) {
-      struct ibv_qp_init_attr create_attr;
-      memset(&create_attr, 0, sizeof(struct ibv_qp_init_attr));
-      create_attr.send_cq = cb->conn_cq[i];
-      create_attr.recv_cq = cb->conn_cq[i];
-      create_attr.qp_type = cb->use_uc == 1 ? IBV_QPT_UC : IBV_QPT_RC;
+#if (kHrdMlx5Atomics == false)
+    struct ibv_qp_init_attr create_attr;
+    memset(&create_attr, 0, sizeof(struct ibv_qp_init_attr));
+    create_attr.send_cq = cb->conn_cq[i];
+    create_attr.recv_cq = cb->conn_cq[i];
+    create_attr.qp_type = cb->use_uc == 1 ? IBV_QPT_UC : IBV_QPT_RC;
 
-      create_attr.cap.max_send_wr = kHrdSQDepth;
-      create_attr.cap.max_recv_wr = 1;  // We don't do RECVs on conn QPs
-      create_attr.cap.max_send_sge = 1;
-      create_attr.cap.max_recv_sge = 1;
-      create_attr.cap.max_inline_data = kHrdMaxInline;
+    create_attr.cap.max_send_wr = kHrdSQDepth;
+    create_attr.cap.max_recv_wr = 1;  // We don't do RECVs on conn QPs
+    create_attr.cap.max_send_sge = 1;
+    create_attr.cap.max_recv_sge = 1;
+    create_attr.cap.max_inline_data = kHrdMaxInline;
 
-      cb->conn_qp[i] = ibv_create_qp(cb->pd, &create_attr);
-      assert(cb->conn_qp[i] != nullptr);
+    cb->conn_qp[i] = ibv_create_qp(cb->pd, &create_attr);
+    assert(cb->conn_qp[i] != nullptr);
 
-      struct ibv_qp_attr init_attr;
-      memset(&init_attr, 0, sizeof(struct ibv_qp_attr));
-      init_attr.qp_state = IBV_QPS_INIT;
-      init_attr.pkey_index = 0;
-      init_attr.port_num = cb->resolve.dev_port_id;
-      init_attr.qp_access_flags =
-          cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
-                          : IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ |
-                                IBV_ACCESS_REMOTE_ATOMIC;
+    struct ibv_qp_attr init_attr;
+    memset(&init_attr, 0, sizeof(struct ibv_qp_attr));
+    init_attr.qp_state = IBV_QPS_INIT;
+    init_attr.pkey_index = 0;
+    init_attr.port_num = cb->resolve.dev_port_id;
+    init_attr.qp_access_flags = cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
+                                                : IBV_ACCESS_REMOTE_WRITE |
+                                                      IBV_ACCESS_REMOTE_READ |
+                                                      IBV_ACCESS_REMOTE_ATOMIC;
 
-      if (ibv_modify_qp(cb->conn_qp[i], &init_attr,
-                        IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT |
-                            IBV_QP_ACCESS_FLAGS)) {
-        fprintf(stderr, "Failed to modify conn QP to INIT\n");
-        exit(-1);
-      }
-    } else {
-      assert(cb->use_uc == 0);  // This is for atomics; no atomics on UC
-      struct ibv_exp_qp_init_attr create_attr;
-      memset(&create_attr, 0, sizeof(struct ibv_exp_qp_init_attr));
-
-      create_attr.pd = cb->pd;
-      create_attr.send_cq = cb->conn_cq[i];
-      create_attr.recv_cq = cb->conn_cq[i];
-      create_attr.cap.max_send_wr = kHrdSQDepth;
-      create_attr.cap.max_recv_wr = 1;  // We don't do RECVs on conn QPs
-      create_attr.cap.max_send_sge = 1;
-      create_attr.cap.max_recv_sge = 1;
-      create_attr.cap.max_inline_data = kHrdMaxInline;
-      create_attr.max_atomic_arg = 8;
-      create_attr.exp_create_flags = IBV_EXP_QP_CREATE_ATOMIC_BE_REPLY;
-      create_attr.comp_mask = IBV_EXP_QP_INIT_ATTR_CREATE_FLAGS |
-                              IBV_EXP_QP_INIT_ATTR_PD |
-                              IBV_EXP_QP_INIT_ATTR_ATOMICS_ARG;
-      create_attr.qp_type = IBV_QPT_RC;
-
-      cb->conn_qp[i] = ibv_exp_create_qp(cb->resolve.ib_ctx, &create_attr);
-      assert(cb->conn_qp[i] != nullptr);
-
-      struct ibv_exp_qp_attr init_attr;
-      memset(&init_attr, 0, sizeof(struct ibv_exp_qp_attr));
-      init_attr.qp_state = IBV_QPS_INIT;
-      init_attr.pkey_index = 0;
-      init_attr.port_num = cb->resolve.dev_port_id;
-      init_attr.qp_access_flags =
-          cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
-                          : IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ |
-                                IBV_ACCESS_REMOTE_ATOMIC;
-
-      if (ibv_exp_modify_qp(cb->conn_qp[i], &init_attr,
-                            IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT |
-                                IBV_QP_ACCESS_FLAGS)) {
-        fprintf(stderr, "Failed to modify conn QP to INIT\n");
-        exit(-1);
-      }
+    if (ibv_modify_qp(cb->conn_qp[i], &init_attr,
+                      IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT |
+                          IBV_QP_ACCESS_FLAGS)) {
+      fprintf(stderr, "Failed to modify conn QP to INIT\n");
+      exit(-1);
     }
+#else
+    assert(cb->use_uc == 0);  // This is for atomics; no atomics on UC
+    struct ibv_exp_qp_init_attr create_attr;
+    memset(&create_attr, 0, sizeof(struct ibv_exp_qp_init_attr));
+
+    create_attr.pd = cb->pd;
+    create_attr.send_cq = cb->conn_cq[i];
+    create_attr.recv_cq = cb->conn_cq[i];
+    create_attr.cap.max_send_wr = kHrdSQDepth;
+    create_attr.cap.max_recv_wr = 1;  // We don't do RECVs on conn QPs
+    create_attr.cap.max_send_sge = 1;
+    create_attr.cap.max_recv_sge = 1;
+    create_attr.cap.max_inline_data = kHrdMaxInline;
+    create_attr.max_atomic_arg = 8;
+    create_attr.exp_create_flags = IBV_EXP_QP_CREATE_ATOMIC_BE_REPLY;
+    create_attr.comp_mask = IBV_EXP_QP_INIT_ATTR_CREATE_FLAGS |
+                            IBV_EXP_QP_INIT_ATTR_PD |
+                            IBV_EXP_QP_INIT_ATTR_ATOMICS_ARG;
+    create_attr.qp_type = IBV_QPT_RC;
+
+    cb->conn_qp[i] = ibv_exp_create_qp(cb->resolve.ib_ctx, &create_attr);
+    assert(cb->conn_qp[i] != nullptr);
+
+    struct ibv_exp_qp_attr init_attr;
+    memset(&init_attr, 0, sizeof(struct ibv_exp_qp_attr));
+    init_attr.qp_state = IBV_QPS_INIT;
+    init_attr.pkey_index = 0;
+    init_attr.port_num = cb->resolve.dev_port_id;
+    init_attr.qp_access_flags = cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
+                                                : IBV_ACCESS_REMOTE_WRITE |
+                                                      IBV_ACCESS_REMOTE_READ |
+                                                      IBV_ACCESS_REMOTE_ATOMIC;
+
+    if (ibv_exp_modify_qp(cb->conn_qp[i], &init_attr,
+                          IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT |
+                              IBV_QP_ACCESS_FLAGS)) {
+      fprintf(stderr, "Failed to modify conn QP to INIT\n");
+      exit(-1);
+    }
+  }
+#endif
   }
 }
 
@@ -421,103 +422,103 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
   assert(cb->conn_qp[n] != nullptr);
   assert(cb->resolve.dev_port_id >= 1);
 
-  if (kHrdMlx5Atomics) {
-    struct ibv_qp_attr conn_attr;
-    memset(&conn_attr, 0, sizeof(struct ibv_qp_attr));
-    conn_attr.qp_state = IBV_QPS_RTR;
-    conn_attr.path_mtu = IBV_MTU_4096;
-    conn_attr.dest_qp_num = remote_qp_attr->qpn;
-    conn_attr.rq_psn = kHrdDefaultPSN;
+#if (kHrdMlx5Atomics == false)
+  struct ibv_qp_attr conn_attr;
+  memset(&conn_attr, 0, sizeof(struct ibv_qp_attr));
+  conn_attr.qp_state = IBV_QPS_RTR;
+  conn_attr.path_mtu = IBV_MTU_4096;
+  conn_attr.dest_qp_num = remote_qp_attr->qpn;
+  conn_attr.rq_psn = kHrdDefaultPSN;
 
-    conn_attr.ah_attr.is_global = 0;
-    conn_attr.ah_attr.dlid = remote_qp_attr->lid;
-    conn_attr.ah_attr.sl = 0;
-    conn_attr.ah_attr.src_path_bits = 0;
-    conn_attr.ah_attr.port_num = cb->resolve.dev_port_id;  // Local port!
+  conn_attr.ah_attr.is_global = 0;
+  conn_attr.ah_attr.dlid = remote_qp_attr->lid;
+  conn_attr.ah_attr.sl = 0;
+  conn_attr.ah_attr.src_path_bits = 0;
+  conn_attr.ah_attr.port_num = cb->resolve.dev_port_id;  // Local port!
 
-    int rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU |
-                    IBV_QP_DEST_QPN | IBV_QP_RQ_PSN;
+  int rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
+                  IBV_QP_RQ_PSN;
 
-    if (!cb->use_uc) {
-      conn_attr.max_dest_rd_atomic = 16;
-      conn_attr.min_rnr_timer = 12;
-      rtr_flags |= IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
-    }
-
-    if (ibv_modify_qp(cb->conn_qp[n], &conn_attr, rtr_flags)) {
-      fprintf(stderr, "HRD: Failed to modify QP to RTR\n");
-      assert(false);
-    }
-
-    memset(&conn_attr, 0, sizeof(conn_attr));
-    conn_attr.qp_state = IBV_QPS_RTS;
-    conn_attr.sq_psn = kHrdDefaultPSN;
-
-    int rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
-
-    if (!cb->use_uc) {
-      conn_attr.timeout = 14;
-      conn_attr.retry_cnt = 7;
-      conn_attr.rnr_retry = 7;
-      conn_attr.max_rd_atomic = 16;
-      conn_attr.max_dest_rd_atomic = 16;
-      rts_flags |= IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
-                   IBV_QP_MAX_QP_RD_ATOMIC;
-    }
-
-    if (ibv_modify_qp(cb->conn_qp[n], &conn_attr, rts_flags)) {
-      fprintf(stderr, "HRD: Failed to modify QP to RTS\n");
-      assert(false);
-    }
-  } else {
-    struct ibv_exp_qp_attr conn_attr;
-    memset(&conn_attr, 0, sizeof(struct ibv_exp_qp_attr));
-    conn_attr.qp_state = IBV_QPS_RTR;
-    conn_attr.path_mtu = IBV_MTU_4096;
-    conn_attr.dest_qp_num = remote_qp_attr->qpn;
-    conn_attr.rq_psn = kHrdDefaultPSN;
-
-    conn_attr.ah_attr.is_global = 0;
-    conn_attr.ah_attr.dlid = remote_qp_attr->lid;
-    conn_attr.ah_attr.sl = 0;
-    conn_attr.ah_attr.src_path_bits = 0;
-    conn_attr.ah_attr.port_num = cb->resolve.dev_port_id;  // Local port!
-
-    uint64_t rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU |
-                         IBV_QP_DEST_QPN | IBV_QP_RQ_PSN;
-
-    if (!cb->use_uc) {
-      conn_attr.max_dest_rd_atomic = 16;
-      conn_attr.min_rnr_timer = 12;
-      rtr_flags |= IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
-    }
-
-    if (ibv_exp_modify_qp(cb->conn_qp[n], &conn_attr, rtr_flags)) {
-      fprintf(stderr, "HRD: Failed to modify QP to RTR\n");
-      assert(false);
-    }
-
-    memset(&conn_attr, 0, sizeof(conn_attr));
-    conn_attr.qp_state = IBV_QPS_RTS;
-    conn_attr.sq_psn = kHrdDefaultPSN;
-
-    uint64_t rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
-
-    if (!cb->use_uc) {
-      conn_attr.timeout = 14;
-      conn_attr.retry_cnt = 7;
-      conn_attr.rnr_retry = 7;
-      conn_attr.max_rd_atomic = 16;
-      conn_attr.max_dest_rd_atomic = 16;
-      rts_flags |= IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
-                   IBV_QP_MAX_QP_RD_ATOMIC;
-    }
-
-    if (ibv_exp_modify_qp(cb->conn_qp[n], &conn_attr, rts_flags)) {
-      fprintf(stderr, "HRD: Failed to modify QP to RTS\n");
-      assert(false);
-    }
+  if (!cb->use_uc) {
+    conn_attr.max_dest_rd_atomic = 16;
+    conn_attr.min_rnr_timer = 12;
+    rtr_flags |= IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
   }
+
+  if (ibv_modify_qp(cb->conn_qp[n], &conn_attr, rtr_flags)) {
+    fprintf(stderr, "HRD: Failed to modify QP to RTR\n");
+    assert(false);
+  }
+
+  memset(&conn_attr, 0, sizeof(conn_attr));
+  conn_attr.qp_state = IBV_QPS_RTS;
+  conn_attr.sq_psn = kHrdDefaultPSN;
+
+  int rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
+
+  if (!cb->use_uc) {
+    conn_attr.timeout = 14;
+    conn_attr.retry_cnt = 7;
+    conn_attr.rnr_retry = 7;
+    conn_attr.max_rd_atomic = 16;
+    conn_attr.max_dest_rd_atomic = 16;
+    rts_flags |= IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
+                 IBV_QP_MAX_QP_RD_ATOMIC;
+  }
+
+  if (ibv_modify_qp(cb->conn_qp[n], &conn_attr, rts_flags)) {
+    fprintf(stderr, "HRD: Failed to modify QP to RTS\n");
+    assert(false);
+  }
+#else
+  struct ibv_exp_qp_attr conn_attr;
+  memset(&conn_attr, 0, sizeof(struct ibv_exp_qp_attr));
+  conn_attr.qp_state = IBV_QPS_RTR;
+  conn_attr.path_mtu = IBV_MTU_4096;
+  conn_attr.dest_qp_num = remote_qp_attr->qpn;
+  conn_attr.rq_psn = kHrdDefaultPSN;
+
+  conn_attr.ah_attr.is_global = 0;
+  conn_attr.ah_attr.dlid = remote_qp_attr->lid;
+  conn_attr.ah_attr.sl = 0;
+  conn_attr.ah_attr.src_path_bits = 0;
+  conn_attr.ah_attr.port_num = cb->resolve.dev_port_id;  // Local port!
+
+  uint64_t rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU |
+                       IBV_QP_DEST_QPN | IBV_QP_RQ_PSN;
+
+  if (!cb->use_uc) {
+    conn_attr.max_dest_rd_atomic = 16;
+    conn_attr.min_rnr_timer = 12;
+    rtr_flags |= IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
+  }
+
+  if (ibv_exp_modify_qp(cb->conn_qp[n], &conn_attr, rtr_flags)) {
+    fprintf(stderr, "HRD: Failed to modify QP to RTR\n");
+    assert(false);
+  }
+
+  memset(&conn_attr, 0, sizeof(conn_attr));
+  conn_attr.qp_state = IBV_QPS_RTS;
+  conn_attr.sq_psn = kHrdDefaultPSN;
+
+  uint64_t rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
+
+  if (!cb->use_uc) {
+    conn_attr.timeout = 14;
+    conn_attr.retry_cnt = 7;
+    conn_attr.rnr_retry = 7;
+    conn_attr.max_rd_atomic = 16;
+    conn_attr.max_dest_rd_atomic = 16;
+    rts_flags |= IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
+                 IBV_QP_MAX_QP_RD_ATOMIC;
+  }
+
+  if (ibv_exp_modify_qp(cb->conn_qp[n], &conn_attr, rts_flags)) {
+    fprintf(stderr, "HRD: Failed to modify QP to RTS\n");
+    assert(false);
+  }
+#endif
 
   return;
 }

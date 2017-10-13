@@ -32,7 +32,8 @@ static constexpr size_t kHrdMaxLID = 256;
 
 static constexpr size_t kHrdQPNameSize = 200;
 
-static constexpr bool kHrdMlx5Atomics = false;
+// This needs to be a macro because we don't have OFED for Debian
+#define kHrdMlx5Atomics false
 static constexpr size_t kHrdMaxInline = 60;
 
 /// Optimized (x + 1) % N
