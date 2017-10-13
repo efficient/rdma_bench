@@ -13,8 +13,7 @@ inline bool is_remote_qp_on_same_physical_mc(size_t qp_i) {
 }
 
 // Get the name for the QP index qp_i created by this thread
-void get_qp_name_local(char* namebuf, size_t qp_i) {
-  assert(namebuf != nullptr);
+void get_qp_name_local(char namebuf[kHrdQPNameSize], size_t qp_i) {
   assert(qp_i < kAppNumQPsPerThread);
 
   size_t for_phys_mc = qp_i % kAppNumMachines;
@@ -26,8 +25,7 @@ void get_qp_name_local(char* namebuf, size_t qp_i) {
 
 // Get the name of the remote QP that QP index qp_i created by this thread
 // should connect to.
-void get_qp_name_remote(char* namebuf, size_t qp_i) {
-  assert(namebuf != nullptr);
+void get_qp_name_remote(char namebuf[kHrdQPNameSize], size_t qp_i) {
   assert(qp_i < kAppNumQPsPerThread);
 
   size_t for_phys_mc = qp_i % kAppNumMachines;
@@ -35,28 +33,6 @@ void get_qp_name_remote(char* namebuf, size_t qp_i) {
 
   sprintf(namebuf, "on_phys_mc_%zu-at_thr_%zu-for_phys_mc_%zu-for_vm_%zu",
           for_phys_mc, tl_params.wrkr_lid, FLAGS_machine_id, for_vm);
-}
-
-// Record machine throughput
-void record_sweep_params() {
-  fprintf(tl_out_fp, "Machine %zu: sweep parameters: ", FLAGS_machine_id);
-  fprintf(tl_out_fp, "kAppRDMASize %zu, ", kAppRDMASize);
-  fprintf(tl_out_fp, "kAppWindowSize %zu, ", kAppWindowSize);
-  fprintf(tl_out_fp, "kAppUnsigBatch %zu, ", kAppUnsigBatch);
-  fprintf(tl_out_fp, "kAppAllsig %u, ", kAppAllsig);
-  fprintf(tl_out_fp, "kAppNumWorkers %zu, ", kAppNumWorkers);
-  fflush(tl_out_fp);
-}
-
-// Record machine throughput
-void record_machine_tput(double total_tput) {
-  assert(tl_out_fp != nullptr);
-  char timebuf[50];
-  hrd_get_formatted_time(timebuf);
-
-  fprintf(tl_out_fp, "Machine %zu: tput = %.2f reqs/s, time %s\n",
-          FLAGS_machine_id, total_tput, timebuf);
-  fflush(tl_out_fp);
 }
 
 // Choose a QP to send an RDMA on
@@ -75,96 +51,7 @@ void kill_handler(int) {
   hrd_ctrl_blk_destroy(tl_cb);
 }
 
-void run_worker(thread_params_t* params) {
-  signal(SIGINT, kill_handler);
-  signal(SIGKILL, kill_handler);
-  signal(SIGTERM, kill_handler);
-
-  tl_params = *params;
-  size_t first_in_machine = (tl_params.wrkr_gid % kAppNumThreads == 0);
-
-  printf("Worker %zu: use_uc = %zu\n", tl_params.wrkr_gid, FLAGS_use_uc);
-
-  size_t vport_index = tl_params.wrkr_lid % FLAGS_num_ports;
-  size_t ib_port_index = FLAGS_base_port_index + vport_index * 2;
-
-  // Create the output file for this machine
-  if (first_in_machine == 1) {
-    char filename[100];
-    sprintf(filename, "tput-out/machine-%zu", FLAGS_machine_id);
-    tl_out_fp = fopen(filename, "w");
-    assert(tl_out_fp != nullptr);
-    record_sweep_params();
-  }
-
-  // Create the control block
-  int wrkr_shm_key =
-      kAppWorkerBaseSHMKey + (tl_params.wrkr_gid % kAppNumThreads);
-  hrd_conn_config_t conn_config;
-  conn_config.num_qps = kAppNumQPsPerThread;
-  conn_config.use_uc = (FLAGS_use_uc == 1);
-  conn_config.prealloc_buf = nullptr;
-  conn_config.buf_size = kAppBufSize;
-  conn_config.buf_shm_key = wrkr_shm_key;
-  tl_cb = hrd_ctrl_blk_init(tl_params.wrkr_gid, ib_port_index, FLAGS_numa_node,
-                            &conn_config, nullptr);
-
-  if (FLAGS_do_read == 1) {
-    // Set to 0 so that we can detect READ completion by polling.
-    memset(const_cast<uint8_t*>(tl_cb->conn_buf), 0, kAppBufSize);
-  } else {
-    // Set to 5 so that WRITEs show up as a weird value
-    memset(const_cast<uint8_t*>(tl_cb->conn_buf), 5, kAppBufSize);
-  }
-
-  // Publish worker QPs
-  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
-    char local_qp_name[kHrdQPNameSize];
-    get_qp_name_local(local_qp_name, i);
-
-    hrd_publish_conn_qp(tl_cb, i, local_qp_name);
-  }
-  printf("main: Worker %zu published local QPs\n", tl_params.wrkr_gid);
-
-  // Find QPs to connect to
-  hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread] = {nullptr};
-  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
-    // Do not connect if remote QP is on this machine
-    if (is_remote_qp_on_same_physical_mc(i)) continue;
-
-    char remote_qp_name[kHrdQPNameSize];
-    get_qp_name_remote(remote_qp_name, i);
-
-    printf("main: Worker %zu looking for %s.\n", tl_params.wrkr_gid,
-           remote_qp_name);
-    while (remote_qp_arr[i] == nullptr) {
-      remote_qp_arr[i] = hrd_get_published_qp(remote_qp_name);
-      if (remote_qp_arr[i] == nullptr) usleep(20000);
-    }
-
-    printf("main: Worker %zu found %s! Connecting..\n", tl_params.wrkr_gid,
-           remote_qp_name);
-    hrd_connect_qp(tl_cb, i, remote_qp_arr[i]);
-
-    char local_qp_name[kHrdQPNameSize];
-    get_qp_name_local(local_qp_name, i);
-    hrd_publish_ready(local_qp_name);
-  }
-
-  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
-    // Do not connect if remote QP is on this machine
-    if (is_remote_qp_on_same_physical_mc(i)) continue;
-
-    char remote_qp_name[kHrdQPNameSize];
-    get_qp_name_remote(remote_qp_name, i);
-
-    printf("main: Worker %zu waiting for %s to get ready\n", tl_params.wrkr_gid,
-           remote_qp_name);
-    hrd_wait_till_ready(remote_qp_name);
-  }
-
-  printf("main: Worker %zu ready\n", tl_params.wrkr_gid);
-
+void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
   struct ibv_send_wr wr, *bad_send_wr;
   struct ibv_sge sgl;
   struct ibv_wc wc;
@@ -178,9 +65,6 @@ void run_worker(thread_params_t* params) {
 
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
-  size_t qpn = 0;  // Queue pair number to read or write from
-  size_t rec_qpn_arr[kAppWindowSize] = {0};  // Record which QP we used
-
   // Move fastrand for this worker
   uint64_t seed __attribute__((unused)) = 0xdeadbeef;
   for (size_t i = 0; i < tl_params.wrkr_gid * 10000000; i++) {
@@ -189,6 +73,8 @@ void run_worker(thread_params_t* params) {
 
   // if (FLAGS_machine_id != 0) sleep(100000);
 
+  size_t qpn = 0;  // Queue pair number to read or write from
+  size_t rec_qpn_arr[kAppWindowSize] = {0};  // Record which QP we used
   while (1) {
     if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
@@ -203,13 +89,13 @@ void run_worker(thread_params_t* params) {
           kAppWindowSize);
 
       // Per-machine throughput computation
-      params->tput_arr[tl_params.wrkr_gid % kAppNumThreads] = tput;
-      if (first_in_machine == 1) {
+      tl_params.tput_arr[tl_params.wrkr_gid % kAppNumThreads] = tput;
+      if (tl_params.wrkr_lid == 0) {
         double machine_tput = 0;
         for (size_t i = 0; i < kAppNumThreads; i++) {
-          machine_tput += params->tput_arr[i];
+          machine_tput += tl_params.tput_arr[i];
         }
-        record_machine_tput(machine_tput);
+        record_machine_tput(tl_out_fp, machine_tput);
         hrd_red_printf("main: Total tput %.2f Mops\n", machine_tput);
       }
       rolling_iter = 0;
@@ -299,6 +185,96 @@ void run_worker(thread_params_t* params) {
     nb_tx_tot++;
     mod_add_one<kAppWindowSize>(window_i);
   }
+}
+
+void run_worker(thread_params_t* params) {
+  signal(SIGINT, kill_handler);
+  signal(SIGKILL, kill_handler);
+  signal(SIGTERM, kill_handler);
+
+  tl_params = *params;
+  printf("Worker %zu: use_uc = %zu\n", tl_params.wrkr_gid, FLAGS_use_uc);
+
+  size_t vport_index = tl_params.wrkr_lid % FLAGS_num_ports;
+  size_t ib_port_index = FLAGS_base_port_index + vport_index * 2;
+
+  // Create the output file for this machine
+  if (tl_params.wrkr_lid == 0) {
+    char filename[100];
+    sprintf(filename, "tput-out/machine-%zu", FLAGS_machine_id);
+    tl_out_fp = fopen(filename, "w");
+    assert(tl_out_fp != nullptr);
+    record_sweep_params(tl_out_fp);
+  }
+
+  // Create the control block
+  int wrkr_shm_key =
+      kAppWorkerBaseSHMKey + (tl_params.wrkr_gid % kAppNumThreads);
+  hrd_conn_config_t conn_config;
+  conn_config.num_qps = kAppNumQPsPerThread;
+  conn_config.use_uc = (FLAGS_use_uc == 1);
+  conn_config.prealloc_buf = nullptr;
+  conn_config.buf_size = kAppBufSize;
+  conn_config.buf_shm_key = wrkr_shm_key;
+  tl_cb = hrd_ctrl_blk_init(tl_params.wrkr_gid, ib_port_index, FLAGS_numa_node,
+                            &conn_config, nullptr);
+
+  if (FLAGS_do_read == 1) {
+    // Set to 0 so that we can detect READ completion by polling.
+    memset(const_cast<uint8_t*>(tl_cb->conn_buf), 0, kAppBufSize);
+  } else {
+    // Set to 5 so that WRITEs show up as a weird value
+    memset(const_cast<uint8_t*>(tl_cb->conn_buf), 5, kAppBufSize);
+  }
+
+  // Publish worker QPs
+  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
+    char local_qp_name[kHrdQPNameSize];
+    get_qp_name_local(local_qp_name, i);
+
+    hrd_publish_conn_qp(tl_cb, i, local_qp_name);
+  }
+  printf("main: Worker %zu published local QPs\n", tl_params.wrkr_gid);
+
+  // Find QPs to connect to
+  hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread] = {nullptr};
+  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
+    // Do not connect if remote QP is on this machine
+    if (is_remote_qp_on_same_physical_mc(i)) continue;
+
+    char remote_qp_name[kHrdQPNameSize];
+    get_qp_name_remote(remote_qp_name, i);
+
+    printf("main: Worker %zu looking for %s.\n", tl_params.wrkr_gid,
+           remote_qp_name);
+    while (remote_qp_arr[i] == nullptr) {
+      remote_qp_arr[i] = hrd_get_published_qp(remote_qp_name);
+      if (remote_qp_arr[i] == nullptr) usleep(20000);
+    }
+
+    printf("main: Worker %zu found %s! Connecting..\n", tl_params.wrkr_gid,
+           remote_qp_name);
+    hrd_connect_qp(tl_cb, i, remote_qp_arr[i]);
+
+    char local_qp_name[kHrdQPNameSize];
+    get_qp_name_local(local_qp_name, i);
+    hrd_publish_ready(local_qp_name);
+  }
+
+  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
+    // Do not connect if remote QP is on this machine
+    if (is_remote_qp_on_same_physical_mc(i)) continue;
+
+    char remote_qp_name[kHrdQPNameSize];
+    get_qp_name_remote(remote_qp_name, i);
+
+    printf("main: Worker %zu waiting for %s to get ready\n", tl_params.wrkr_gid,
+           remote_qp_name);
+    hrd_wait_till_ready(remote_qp_name);
+  }
+
+  printf("main: Worker %zu ready\n", tl_params.wrkr_gid);
+  worker_main_loop(const_cast<const hrd_qp_attr_t**>(remote_qp_arr));
 }
 
 int main(int argc, char* argv[]) {

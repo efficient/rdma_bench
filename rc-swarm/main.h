@@ -61,4 +61,27 @@ static bool validate_do_read(const char*, uint64_t do_read) {
 
 DEFINE_validator(do_read, &validate_do_read);
 
+// File I/O helpers
+
+// Record machine throughput
+void record_sweep_params(FILE* fp) {
+  fprintf(fp, "Machine %zu: sweep parameters: ", FLAGS_machine_id);
+  fprintf(fp, "kAppRDMASize %zu, ", kAppRDMASize);
+  fprintf(fp, "kAppWindowSize %zu, ", kAppWindowSize);
+  fprintf(fp, "kAppUnsigBatch %zu, ", kAppUnsigBatch);
+  fprintf(fp, "kAppAllsig %u, ", kAppAllsig);
+  fprintf(fp, "kAppNumWorkers %zu, ", kAppNumWorkers);
+  fflush(fp);
+}
+
+// Record machine throughput
+void record_machine_tput(FILE* fp, double total_tput) {
+  char timebuf[50];
+  hrd_get_formatted_time(timebuf);
+
+  fprintf(fp, "Machine %zu: tput = %.2f reqs/s, time %s\n", FLAGS_machine_id,
+          total_tput, timebuf);
+  fflush(fp);
+}
+
 #endif  // MAIN_H
