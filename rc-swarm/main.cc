@@ -187,7 +187,7 @@ void run_worker(thread_params_t* params) {
     hrd_fastrand(&seed);
 
   while (1) {
-    if (rolling_iter >= M_2) {
+    if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;

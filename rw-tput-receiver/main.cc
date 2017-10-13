@@ -128,7 +128,7 @@ void run_client(thread_params_t* params) {
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
   while (1) {
-    if (rolling_iter >= M_8) {
+    if (rolling_iter >= MB(8)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;

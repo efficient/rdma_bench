@@ -10,7 +10,7 @@
 // If 1, all RDMA are signaled and UNSIG_BATCH is ignored
 static constexpr bool kAppAllsig = true;
 
-static constexpr size_t kAppBufSize = M_2;
+static constexpr size_t kAppBufSize = MB(2);
 static constexpr size_t kAppBufSize_ = (kAppBufSize - 1);
 
 // SHM keys used by workers
@@ -38,7 +38,7 @@ static constexpr size_t kAppMaxMachines = 256;  // Max machines in the swarm
 
 // Checks
 static_assert(kAppNumWorkers % kAppNumMachines == 0, "");
-static_assert(kAppBufSize >= M_2, "");    // Large buffer, more parallelism
+static_assert(kAppBufSize >= MB(2), "");    // Large buffer, more parallelism
 static_assert(kAppNumMachines >= 2, "");  // At least 2 machines
 static_assert(kAppNumWorkers % kAppNumMachines == 0, "");  // kAppNumThreads
 static_assert(kHrdSQDepth == 128, "");                 // Reduce cache pressure

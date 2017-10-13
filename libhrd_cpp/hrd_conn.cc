@@ -29,7 +29,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
     hrd_red_printf(
         "HRD: control block %zu: "
         "dgram qps %zu, dgram buf %.3f MB (key %d)\n",
-        local_hid, dgram_config->num_qps, dgram_config->buf_size / M_1 * 1.0,
+        local_hid, dgram_config->num_qps, dgram_config->buf_size / MB(1) * 1.0,
         dgram_config->buf_shm_key);
   }
 
@@ -54,7 +54,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
     cb->conn_buf_size = conn_config->buf_size;
     cb->conn_buf_shm_key = conn_config->buf_shm_key;
 
-    assert(cb->conn_buf_size <= M_1024);
+    assert(cb->conn_buf_size <= MB(1024));
     if (conn_config->prealloc_buf != nullptr) {
       assert(cb->conn_buf_shm_key == -1);
     }
@@ -66,7 +66,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
     cb->dgram_buf_size = dgram_config->buf_size;
     cb->dgram_buf_shm_key = dgram_config->buf_shm_key;
 
-    assert(cb->dgram_buf_size <= M_1024);
+    assert(cb->dgram_buf_size <= MB(1024));
     if (dgram_config->prealloc_buf != nullptr) {
       assert(cb->dgram_buf_shm_key == -1);
     }
@@ -96,7 +96,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
 
       if (numa_node_id <= 8) {
         // Hugepages
-        while (reg_size < cb->dgram_buf_size) reg_size += M_2;
+        while (reg_size < cb->dgram_buf_size) reg_size += MB(2);
 
         // SHM key 0 is hard to free later
         assert(cb->dgram_buf_shm_key >= 1 && cb->dgram_buf_shm_key <= 128);
@@ -137,7 +137,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
       // If numa_node_id < 0, use standard heap memory
       if (numa_node_id <= 8) {
         // Hugepages
-        while (reg_size < cb->conn_buf_size) reg_size += M_2;
+        while (reg_size < cb->conn_buf_size) reg_size += MB(2);
 
         // SHM key 0 is hard to free later
         assert(cb->conn_buf_shm_key >= 1 && cb->conn_buf_shm_key <= 128);

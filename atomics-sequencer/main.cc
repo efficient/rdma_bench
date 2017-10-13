@@ -164,15 +164,13 @@ void* run_client(thread_params_t* params) {
 
   // Make this client's counter requests reasonably independent of others
   uint64_t seed = 0xdeadbeef;
-  for (size_t i = 0; i < clt_gid * M_128; i++) {
-    hrd_fastrand(&seed);
-  }
+  for (size_t i = 0; i < clt_gid * MB(128); i++) hrd_fastrand(&seed);
 
   // cb->conn_buf is 8-byte aligned even if hugepages are not used
   auto* counter = reinterpret_cast<volatile size_t*>(cb->conn_buf);
 
   while (1) {
-    if (rolling_iter >= M_1) {
+    if (rolling_iter >= MB(1)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 100000000.0;
