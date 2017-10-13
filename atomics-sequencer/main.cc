@@ -179,20 +179,21 @@ void* run_client(thread_params_t* params) {
       size_t num_gets = num_reads;
       size_t num_puts = num_atomics / 2;
 
-#if HRD_CONNECT_IB_ATOMICS == 1
-      printf(
-          "main: Client %zu: %.2f GETs/s, %.2f PUTs/s, %.2f ops/s "
-          "(%.2f atomics/s). Ctr = %zu.\n",
-          clt_gid, num_gets / seconds, num_puts / seconds,
-          (num_gets + num_puts) / seconds, num_atomics / seconds,
-          static_cast<size_t>(bswap_64(*counter)));
-#else
-      printf(
-          "main: Client %zu: %.2f GETs/s, %.2f PUTs/s, %.2f ops/s "
-          "(%.2f atomics/s). Ctr = %zu\n",
-          clt_gid, num_gets / seconds, num_puts / seconds,
-          (num_gets + num_puts) / seconds, num_atomics / seconds, *counter);
-#endif
+      if (kHrdMlx5Atomics) {
+        printf(
+            "main: Client %zu: %.2f GETs/s, %.2f PUTs/s, %.2f ops/s "
+            "(%.2f atomics/s). Ctr = %zu.\n",
+            clt_gid, num_gets / seconds, num_puts / seconds,
+            (num_gets + num_puts) / seconds, num_atomics / seconds,
+            static_cast<size_t>(bswap_64(*counter)));
+      } else {
+        printf(
+            "main: Client %zu: %.2f GETs/s, %.2f PUTs/s, %.2f ops/s "
+            "(%.2f atomics/s). Ctr = %zu\n",
+            clt_gid, num_gets / seconds, num_puts / seconds,
+            (num_gets + num_puts) / seconds, num_atomics / seconds, *counter);
+      }
+
       // Reset counters
       rolling_iter = 0;
       num_reads = 0;

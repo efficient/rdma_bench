@@ -215,16 +215,15 @@ void run_worker(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    // For READs and kAppAllsig WRITEs, we can restrict outstanding ops per
-    // thread to kAppWindowSize.
+    // For READs and allsig WRITEs, we can restrict outstanding ops per thread
+    // to kAppWindowSize.
     if (nb_tx_tot >= kAppWindowSize) {
-      if (kAppAllsig == 0 && opcode == IBV_WR_RDMA_READ) {
+      if (!kAppAllsig && opcode == IBV_WR_RDMA_READ) {
         while (tl_cb->conn_buf[window_i * kAppRDMASize] == 0) {
-        }  // Wait
-
-        // Zero-out the slot for this round
+          // Infer READ completion by polling on memory
+        }
         tl_cb->conn_buf[window_i * kAppRDMASize] = 0;
-      } else if (kAppAllsig == 1) {
+      } else if (kAppAllsig) {
         size_t qpn_to_poll = rec_qpn_arr[window_i];
         int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn_to_poll], 1, &wc);
         // printf("Polled window index = %d\n", window_i);
@@ -245,19 +244,22 @@ void run_worker(thread_params_t* params) {
     wr.next = nullptr;
     wr.sg_list = &sgl;
 
-#if kAppAllsig == 0
-    wr.send_flags = (nb_tx[qpn] & kAppUnsigBatch_) == 0 ? IBV_SEND_SIGNALED : 0;
-    if ((nb_tx[qpn] & kAppUnsigBatch_) == kAppUnsigBatch_) {
-      int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn], 1, &wc);
-      if (ret != 0) {
-        printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
-        hrd_ctrl_blk_destroy(tl_cb);
-        exit(-1);
+    if (!kAppAllsig) {
+      // Selective signal polling for non-allsig RDMA is done here
+      wr.send_flags =
+          (nb_tx[qpn] & kAppUnsigBatch_) == 0 ? IBV_SEND_SIGNALED : 0;
+      if ((nb_tx[qpn] & kAppUnsigBatch_) == kAppUnsigBatch_) {
+        int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn], 1, &wc);
+        if (ret != 0) {
+          printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
+          hrd_ctrl_blk_destroy(tl_cb);
+          exit(-1);
+        }
       }
+    } else {
+      wr.send_flags = IBV_SEND_SIGNALED;
     }
-#else
-    wr.send_flags = IBV_SEND_SIGNALED;
-#endif
+
     nb_tx[qpn]++;
 
     wr.send_flags |= (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
@@ -269,14 +271,14 @@ void run_worker(thread_params_t* params) {
       _offset = (hrd_fastrand(&seed) & kAppBufSize_);
     }
 
-#if kAppAllsig == 0
-    // Use a predictable address to make polling easy
-    sgl.addr =
-        reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppRDMASize]);
-#else
-    // We'll use CQE to detect comp; using random address improves perf
-    sgl.addr = reinterpret_cast<uint64_t>(&tl_cb->conn_buf[_offset]);
-#endif
+    if (!kAppAllsig) {
+      // Use a predictable address to make READ memory polling easy
+      sgl.addr =
+          reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppRDMASize]);
+    } else {
+      // We'll use CQE to detect comp; using random address improves perf
+      sgl.addr = reinterpret_cast<uint64_t>(&tl_cb->conn_buf[_offset]);
+    }
 
     sgl.length = kAppRDMASize;
     sgl.lkey = tl_cb->conn_buf_mr->lkey;
