@@ -4,7 +4,7 @@
 // preallocated buffer. If @prealloc_conn_buf == nullptr, @conn_buf_size is the
 // size of the new buffer to create.
 struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
-                                         size_t numa_node_id,
+                                         size_t numa_node,
                                          hrd_conn_config_t* conn_config,
                                          hrd_dgram_config_t* dgram_config) {
   if (kHrdMlx5Atomics) {
@@ -15,7 +15,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
   }
 
   hrd_red_printf("HRD: creating control block %zu: port %zu, socket %zu.\n",
-                 local_hid, port_index, numa_node_id);
+                 local_hid, port_index, numa_node);
 
   if (conn_config != nullptr) {
     hrd_red_printf(
@@ -33,11 +33,9 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
         dgram_config->buf_shm_key);
   }
 
-  // Check arguments for sanity.
   // @local_hid can be anything: it's just control block identifier that is
-  // useful in printing debug info.
   assert(port_index <= 16);
-  assert(numa_node_id <= 8);
+  assert(numa_node <= kHrdInvalidNUMANode);
 
   auto* cb = new hrd_ctrl_blk_t();
   memset(cb, 0, sizeof(hrd_ctrl_blk_t));
@@ -45,7 +43,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
   // Fill in the control block
   cb->local_hid = local_hid;
   cb->port_index = port_index;
-  cb->numa_node_id = numa_node_id;
+  cb->numa_node = numa_node;
 
   // Connected QPs
   if (conn_config != nullptr) {
@@ -94,14 +92,15 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
       // Create and register dgram_buf - always make it multiple of 2 MB
       size_t reg_size = 0;
 
-      if (numa_node_id <= 8) {
+      // If numa_node is invalid, use standard heap memory
+      if (numa_node != kHrdInvalidNUMANode) {
         // Hugepages
         while (reg_size < cb->dgram_buf_size) reg_size += MB(2);
 
         // SHM key 0 is hard to free later
         assert(cb->dgram_buf_shm_key >= 1 && cb->dgram_buf_shm_key <= 128);
         cb->dgram_buf = reinterpret_cast<volatile uint8_t*>(
-            hrd_malloc_socket(cb->dgram_buf_shm_key, reg_size, numa_node_id));
+            hrd_malloc_socket(cb->dgram_buf_shm_key, reg_size, numa_node));
       } else {
         reg_size = cb->dgram_buf_size;
         cb->dgram_buf =
@@ -134,15 +133,15 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
       // Create and register conn_buf - always make it multiple of 2 MB
       size_t reg_size = 0;
 
-      // If numa_node_id < 0, use standard heap memory
-      if (numa_node_id <= 8) {
+      // If numa_node is invalid, use standard heap
+      if (numa_node != kHrdInvalidNUMANode) {
         // Hugepages
         while (reg_size < cb->conn_buf_size) reg_size += MB(2);
 
         // SHM key 0 is hard to free later
         assert(cb->conn_buf_shm_key >= 1 && cb->conn_buf_shm_key <= 128);
         cb->conn_buf = reinterpret_cast<volatile uint8_t*>(
-            hrd_malloc_socket(cb->conn_buf_shm_key, reg_size, numa_node_id));
+            hrd_malloc_socket(cb->conn_buf_shm_key, reg_size, numa_node));
       } else {
         reg_size = cb->conn_buf_size;
         cb->conn_buf =
@@ -212,7 +211,7 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
       return -1;
     }
 
-    if (cb->numa_node_id <= 8) {
+    if (cb->numa_node != kHrdInvalidNUMANode) {
       if (hrd_free(cb->dgram_buf_shm_key,
                    const_cast<uint8_t*>(cb->dgram_buf))) {
         fprintf(stderr, "HRD: Error freeing dgram hugepages for cb %zu.\n",
@@ -231,7 +230,7 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
       return -1;
     }
 
-    if (cb->numa_node_id <= 8) {
+    if (cb->numa_node != kHrdInvalidNUMANode) {
       if (hrd_free(cb->conn_buf_shm_key, const_cast<uint8_t*>(cb->conn_buf))) {
         fprintf(stderr, "HRD: Error freeing conn hugepages for cb %zu\n",
                 cb->local_hid);

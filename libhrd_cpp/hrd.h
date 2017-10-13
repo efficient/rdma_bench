@@ -25,6 +25,7 @@
 static constexpr size_t kHrdSQDepth = 128;   // Depth of all SEND queues
 static constexpr size_t kHrdRQDepth = 2048;  // Depth of all RECV queues
 
+static constexpr uint32_t kHrdInvalidNUMANode = 9;
 static constexpr uint32_t kHrdDefaultPSN = 3185;
 static constexpr uint32_t kHrdDefaultQKey = 0x11111111;
 static constexpr size_t kHrdMaxLID = 256;
@@ -71,8 +72,8 @@ struct hrd_ctrl_blk_t {
   size_t local_hid;  // Local ID on the machine this process runs on
 
   // Info about the device/port to use for this control block
-  size_t port_index;    // User-supplied. 0-based across all devices
-  size_t numa_node_id;  // NUMA node id
+  size_t port_index;  // User-supplied. 0-based across all devices
+  size_t numa_node;   // NUMA node id
 
   /// InfiniBand info resolved from \p phy_port, must be filled by constructor.
   struct {
@@ -123,7 +124,7 @@ struct hrd_dgram_config_t {
 
 // Major initialzation functions
 hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
-                                  size_t numa_node_id,
+                                  size_t numa_node,
                                   hrd_conn_config_t* conn_config,
                                   hrd_dgram_config_t* dgram_config);
 

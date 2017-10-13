@@ -39,8 +39,8 @@ void run_server(thread_params_t* params) {
   conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = -1;
 
-  auto* cb =
-      hrd_ctrl_blk_init(srv_gid, ib_port_index, 9, &conn_config, nullptr);
+  auto* cb = hrd_ctrl_blk_init(srv_gid, ib_port_index, kHrdInvalidNUMANode,
+                               &conn_config, nullptr);
 
   char srv_name[kHrdQPNameSize];
   sprintf(srv_name, "server-%zu", srv_gid);
