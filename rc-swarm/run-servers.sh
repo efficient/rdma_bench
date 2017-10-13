@@ -26,7 +26,7 @@ flags="
   --base_port_index 0 \
   --num_ports 2 \
   --use_uc 0 \
-  --do_read 0
+  --do_read 1
 "
 
 rm -f tput-out/*

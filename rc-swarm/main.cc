@@ -63,8 +63,6 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
-
   // Move fastrand for this worker
   uint64_t seed __attribute__((unused)) = 0xdeadbeef;
   for (size_t i = 0; i < tl_params.wrkr_gid * 10000000; i++) {
@@ -103,23 +101,30 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    // For READs and allsig WRITEs, we can restrict outstanding ops per thread
-    // to kAppWindowSize.
     if (nb_tx_tot >= kAppWindowSize) {
-      if (!kAppAllsig && opcode == IBV_WR_RDMA_READ) {
-        while (tl_cb->conn_buf[window_i * kAppRDMASize] == 0) {
-          // Infer READ completion by polling on memory
-        }
-        tl_cb->conn_buf[window_i * kAppRDMASize] = 0;
-      } else if (kAppAllsig) {
-        size_t qpn_to_poll = rec_qpn_arr[window_i];
+      // Poll for both READs and WRITEs if allsig is enabled
+      if (kAppAllsig) {
+        const size_t qpn_to_poll = rec_qpn_arr[window_i];
         int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn_to_poll], 1, &wc);
-        // printf("Polled window index = %d\n", window_i);
         if (ret != 0) {
           printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
           hrd_ctrl_blk_destroy(tl_cb);
           exit(-1);
         }
+      }
+
+      // For READs, poll to ensure <= kAppWindowSize outstanding READs
+      if (FLAGS_do_read == 1) {
+        // Sanity check: If allsig is set, we polled for READ completion above
+        if (kAppAllsig) {
+          rt_assert(tl_cb->conn_buf[window_i * kAppRDMASize] != 0,
+                    "Read completed but buffer still 0");
+        }
+
+        while (tl_cb->conn_buf[window_i * kAppRDMASize] == 0) {
+          // If allsig is not set, we poll here
+        }
+        tl_cb->conn_buf[window_i * kAppRDMASize] = 0;
       }
     }
 
@@ -127,16 +132,15 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
     qpn = choose_qp(&seed);
     rec_qpn_arr[window_i] = qpn;
 
-    wr.opcode = opcode;
+    wr.opcode = FLAGS_do_read == 1 ? IBV_WR_RDMA_READ : IBV_WR_RDMA_WRITE;
     wr.num_sge = 1;
     wr.next = nullptr;
     wr.sg_list = &sgl;
 
     if (!kAppAllsig) {
       // Selective signal polling for non-allsig RDMA is done here
-      wr.send_flags =
-          (nb_tx[qpn] & kAppUnsigBatch_) == 0 ? IBV_SEND_SIGNALED : 0;
-      if ((nb_tx[qpn] & kAppUnsigBatch_) == kAppUnsigBatch_) {
+      wr.send_flags = nb_tx[qpn] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      if (nb_tx[qpn] % kAppUnsigBatch == kAppUnsigBatch - 1) {
         int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn], 1, &wc);
         if (ret != 0) {
           printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
@@ -152,22 +156,15 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
 
     wr.send_flags |= (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
 
-    // Aligning local/remote offset to 64-byte boundary REDUCES performance
-    // significantly (similar to atomics).
-    size_t _offset = (hrd_fastrand(&seed) & kAppBufSize_);
-    while (_offset >= kAppBufSize - kAppRDMASize) {
-      _offset = (hrd_fastrand(&seed) & kAppBufSize_);
-      _offset = round_up<64, size_t>(_offset);
+    size_t _offset = hrd_fastrand(&seed) % kAppBufSize;
+    while (_offset <= kAppPollingRegionSz ||
+           _offset >= kAppBufSize - kAppRDMASize) {
+      _offset = hrd_fastrand(&seed) % kAppBufSize;
+      _offset = round_up<64, size_t>(_offset);  // This can reduce perf!
     }
 
-    if (!kAppAllsig) {
-      // Use a predictable address to make READ memory polling easy
-      sgl.addr =
-          reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppRDMASize]);
-    } else {
-      // We'll use CQE to detect comp; using random address improves perf
-      sgl.addr = reinterpret_cast<uint64_t>(&tl_cb->conn_buf[_offset]);
-    }
+    sgl.addr =
+        reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppRDMASize]);
 
     sgl.length = kAppRDMASize;
     sgl.lkey = tl_cb->conn_buf_mr->lkey;
@@ -208,7 +205,7 @@ void run_worker(thread_params_t* params) {
   }
 
   // Create the control block
-  int wrkr_shm_key =
+  const int wrkr_shm_key =
       kAppWorkerBaseSHMKey + (tl_params.wrkr_gid % kAppNumThreads);
   hrd_conn_config_t conn_config;
   conn_config.num_qps = kAppNumQPsPerThread;
@@ -219,13 +216,10 @@ void run_worker(thread_params_t* params) {
   tl_cb = hrd_ctrl_blk_init(tl_params.wrkr_gid, ib_port_index, FLAGS_numa_node,
                             &conn_config, nullptr);
 
-  if (FLAGS_do_read == 1) {
-    // Set to 0 so that we can detect READ completion by polling.
-    memset(const_cast<uint8_t*>(tl_cb->conn_buf), 0, kAppBufSize);
-  } else {
-    // Set to 5 so that WRITEs show up as a weird value
-    memset(const_cast<uint8_t*>(tl_cb->conn_buf), 5, kAppBufSize);
-  }
+  // Zero-out the READ polling region; non-zero the rest.
+  memset(const_cast<uint8_t*>(tl_cb->conn_buf), 0, kAppPollingRegionSz);
+  memset(const_cast<uint8_t*>(tl_cb->conn_buf + kAppPollingRegionSz), 1,
+         kAppBufSize - kAppPollingRegionSz);
 
   // Publish worker QPs
   for (size_t i = 0; i < kAppNumQPsPerThread; i++) {

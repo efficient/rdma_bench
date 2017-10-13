@@ -7,14 +7,20 @@
 #include "libhrd_cpp/hrd.h"
 #include "sweep.h"
 
+static_assert(is_power_of_two(kAppUnsigBatch), "");
+
 // Total number of physical machines or processes simulated
 static constexpr size_t kAppNumThreads = kAppNumWorkers / kAppNumMachines;
 static constexpr size_t kAppNumQPsPerThread =
     kAppNumMachines * kAppVMsPerMachine;
 
 static constexpr size_t kAppBufSize = MB(2);
-static constexpr size_t kAppBufSize_ = (kAppBufSize - 1);
-static constexpr size_t kAppUnsigBatch_ = (kAppUnsigBatch - 1);
+static_assert(is_power_of_two(kAppBufSize), "");
+
+// The first kAppWindowSize slots are zeroed out and used for READ completion
+// detection. The remaining slots are non-zero and are fetched via READs.
+static constexpr size_t kAppPollingRegionSz = kAppWindowSize * kAppRDMASize;
+static_assert(kAppPollingRegionSz < kAppBufSize / 10, "");
 
 // static constexpr size_t kAppWindowSize = 32;
 // Number of outstanding requests kept by a worker thread  across all QPs.
