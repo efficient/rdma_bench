@@ -9,7 +9,6 @@
 
 static_assert(is_power_of_two(kAppUnsigBatch), "");
 
-// Total number of physical machines or processes simulated
 static constexpr size_t kAppNumThreads = kAppNumWorkers / kAppNumMachines;
 static constexpr size_t kAppNumQPsPerThread =
     kAppNumMachines * kAppVMsPerMachine;

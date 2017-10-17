@@ -51,10 +51,20 @@ void kill_handler(int) {
   hrd_ctrl_blk_destroy(tl_cb);
 }
 
+void app_poll_cq(const size_t qpn) {
+  struct ibv_wc wc;
+  int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn], 1, &wc);
+
+  if (ret != 0) {
+    printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
+    hrd_ctrl_blk_destroy(tl_cb);
+    exit(-1);
+  }
+}
+
 void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
   struct ibv_send_wr wr, *bad_send_wr;
   struct ibv_sge sgl;
-  struct ibv_wc wc;
   size_t rolling_iter = 0;                  // For performance measurement
   size_t nb_tx[kAppNumQPsPerThread] = {0};  // Per-QP tracking for signaling
   size_t nb_tx_tot = 0;                     // For windowing (for READs only)
@@ -64,16 +74,14 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
   clock_gettime(CLOCK_REALTIME, &start);
 
   // Move fastrand for this worker
-  uint64_t seed __attribute__((unused)) = 0xdeadbeef;
-  for (size_t i = 0; i < tl_params.wrkr_gid * 10000000; i++) {
-    hrd_fastrand(&seed);
-  }
+  uint64_t seed = 0xdeadbeef;
+  for (size_t i = 0; i < tl_params.wrkr_gid * MB(10); i++) hrd_fastrand(&seed);
 
   // if (FLAGS_machine_id != 0) sleep(100000);
 
   size_t qpn = 0;  // Queue pair number to read or write from
   size_t rec_qpn_arr[kAppWindowSize] = {0};  // Record which QP we used
-  while (1) {
+  while (true) {
     if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
@@ -103,15 +111,7 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
 
     if (nb_tx_tot >= kAppWindowSize) {
       // Poll for both READs and WRITEs if allsig is enabled
-      if (kAppAllsig) {
-        const size_t qpn_to_poll = rec_qpn_arr[window_i];
-        int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn_to_poll], 1, &wc);
-        if (ret != 0) {
-          printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
-          hrd_ctrl_blk_destroy(tl_cb);
-          exit(-1);
-        }
-      }
+      if (kAppAllsig) app_poll_cq(rec_qpn_arr[window_i]);
 
       // For READs, poll to ensure <= kAppWindowSize outstanding READs
       if (FLAGS_do_read == 1) {
@@ -140,14 +140,7 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
     if (!kAppAllsig) {
       // Selective signal polling for non-allsig RDMA is done here
       wr.send_flags = nb_tx[qpn] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
-      if (nb_tx[qpn] % kAppUnsigBatch == kAppUnsigBatch - 1) {
-        int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn], 1, &wc);
-        if (ret != 0) {
-          printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
-          hrd_ctrl_blk_destroy(tl_cb);
-          exit(-1);
-        }
-      }
+      if (nb_tx[qpn] % kAppUnsigBatch == kAppUnsigBatch - 1) app_poll_cq(qpn);
     } else {
       wr.send_flags = IBV_SEND_SIGNALED;
     }
