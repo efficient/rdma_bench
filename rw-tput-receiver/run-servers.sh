@@ -17,7 +17,8 @@ blue "Starting $num_server_threads server threads"
 flags="
 	--num_threads $num_server_threads \
 	--dual_port 1 \
-  --use_uc 0
+  --use_uc 0 \
+  --is_client 0
 "
 
 # Check for non-gdb mode

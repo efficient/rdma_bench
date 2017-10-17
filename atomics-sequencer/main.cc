@@ -14,7 +14,7 @@ DEFINE_uint64(num_threads, 0, "Number of threads");
 DEFINE_uint64(base_port_index, 0, "Base port index");
 DEFINE_uint64(num_server_ports, 0, "Number of server ports");
 DEFINE_uint64(num_client_ports, 0, "Number of client ports");
-DEFINE_bool(is_client, false, "Is this process a client?");
+DEFINE_uint64(is_client, 0, "Is this process a client?");
 DEFINE_uint64(machine_id, 0, "ID of this machine");
 DEFINE_uint64(postlist, 0, "Postlist size");
 
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
   // Check the flags
   assert(FLAGS_base_port_index <= 8);
 
-  if (FLAGS_is_client) {
+  if (FLAGS_is_client == 1) {
     assert(FLAGS_num_server_ports >= 1 && FLAGS_num_server_ports <= 8);
     assert(FLAGS_num_client_ports >= 1 && FLAGS_num_client_ports <= 8);
     assert(FLAGS_num_threads >= 1);
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
   auto* param_arr = new thread_params_t[FLAGS_num_threads];
   std::vector<std::thread> thread_arr(FLAGS_num_threads);
 
-  if (FLAGS_is_client) {
+  if (FLAGS_is_client == 1) {
     for (size_t i = 0; i < FLAGS_num_threads; i++) {
       param_arr[i].id = (FLAGS_machine_id * FLAGS_num_threads) + i;
       thread_arr[i] = std::thread(run_client, &param_arr[i]);

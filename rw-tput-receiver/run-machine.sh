@@ -25,7 +25,7 @@ flags="\
   --num_threads $num_threads \
 	--dual_port 1 \
 	--use_uc 0 \
-	--is_client \
+	--is_client 1 \
 	--machine_id $1 \
 	--size 32 \
 	--postlist 4 \
@@ -34,10 +34,10 @@ flags="\
 
 # Check for non-gdb mode
 if [ "$#" -eq 1 ]; then
-  sudo -E numactl --cpunodebind=0 --membind=0 ./main $flags
+  sudo -E numactl --cpunodebind=0 --membind=0 ../build/rw-tput-receiver $flags
 fi
 
 # Check for gdb mode
 if [ "$#" -eq 2 ]; then
-  sudo -E gdb -ex run --args ./main $flags
+  sudo -E gdb -ex run --args ../build/rw-tput-receiver $flags
 fi

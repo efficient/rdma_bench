@@ -1,4 +1,3 @@
-#include <getopt.h>
 #include <gflags/gflags.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +13,7 @@ static constexpr size_t kAppUnsigBatch = 64;
 static constexpr size_t kAppUnsigBatch_ = (kAppUnsigBatch - 1);
 
 DEFINE_uint64(num_threads, 0, "Number of threads");
-DEFINE_bool(is_client, false, "Is this process a client?");
+DEFINE_uint64(is_client, 0, "Is this process a client?");
 DEFINE_uint64(dual_port, 0, "Use two ports?");
 DEFINE_uint64(use_uc, 0, "Use unreliable connected transport?");
 DEFINE_uint64(do_read, 0, "Do RDMA reads?");
@@ -189,7 +188,7 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   assert(FLAGS_num_threads >= 1);
 
-  if (FLAGS_is_client) {
+  if (FLAGS_is_client == 1) {
     if (FLAGS_do_read == 0) assert(FLAGS_size <= kHrdMaxInline);
     assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist);
 
@@ -204,7 +203,7 @@ int main(int argc, char* argv[]) {
   auto* tput_arr = new double[FLAGS_num_threads];
 
   for (size_t i = 0; i < FLAGS_num_threads; i++) {
-    if (FLAGS_is_client) {
+    if (FLAGS_is_client == 1) {
       param_arr[i].id = (FLAGS_machine_id * FLAGS_num_threads) + i;
       param_arr[i].tput_arr = tput_arr;
 

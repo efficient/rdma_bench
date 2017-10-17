@@ -84,6 +84,7 @@ set(HRD_SOURCES
 set(BENCHMARKS
   rc-swarm
   rw-tput-receiver
+  rw-tput-sender
   atomics-sequencer)
 
 foreach(bench IN LISTS BENCHMARKS)

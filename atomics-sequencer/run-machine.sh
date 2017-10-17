@@ -27,18 +27,16 @@ flags="\
 	--num_server_ports 2 \
 	--num_client_ports 2 \
 	--postlist 16 \
-	--is_client \
+	--is_client 1 \
 	--machine_id $1
 "
 
 # Check for non-gdb mode
 if [ "$#" -eq 1 ]; then
-  sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-    numactl --cpunodebind=0 --membind=0 ./main $flags
+  sudo -E numactl --cpunodebind=0 --membind=0 ../build/atomics-sequencer $flags
 fi
 
 # Check for gdb mode
 if [ "$#" -eq 2 ]; then
-  sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-    gdb -ex run --args ./main $flags
+  sudo -E gdb -ex run --args ../build/atomics-sequencer $flags
 fi
