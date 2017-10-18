@@ -5,7 +5,7 @@ export HRD_REGISTRY_IP="fawn-pluto0"
 
 drop_shm
 
-num_server_threads=14
+num_server_threads=1
 
 blue "Reset server QP registry"
 sudo killall memcached
@@ -18,10 +18,10 @@ flags="
 	--num_threads $num_server_threads \
 	--dual_port 1 \
   --use_uc 0 \
-	--is-client 0 \
-	--size 256 \
+	--is_client 0 \
+	--size 64 \
 	--postlist 1 \
-	--do-read 1
+	--do_read 1
 "
 
 # Check for non-gdb mode

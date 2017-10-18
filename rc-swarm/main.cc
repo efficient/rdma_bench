@@ -150,10 +150,11 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
     wr.send_flags |= (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
 
     size_t _offset = hrd_fastrand(&seed) % kAppBufSize;
+    if (kAppRoundOffset) _offset = round_up<64, size_t>(_offset);
     while (_offset <= kAppPollingRegionSz ||
            _offset >= kAppBufSize - kAppRDMASize) {
       _offset = hrd_fastrand(&seed) % kAppBufSize;
-      _offset = round_up<64, size_t>(_offset);  // This can reduce perf!
+      if (kAppRoundOffset) _offset = round_up<64, size_t>(_offset);
     }
 
     sgl.addr =

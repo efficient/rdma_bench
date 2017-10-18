@@ -5,7 +5,11 @@ export HRD_REGISTRY_IP="fawn-pluto0"
 
 drop_shm
 
-num_threads=2			# Threads per client machine
+# lsync messes up permissions
+executable="../build/rw-tput-sender"
+chmod +x $executable
+
+num_threads=1			# Threads per client machine
 blue "Running $num_threads client threads"
 
 # Check number of arguments
@@ -31,10 +35,10 @@ flags="\
 
 # Check for non-gdb mode
 if [ "$#" -eq 1 ]; then
-  sudo -E numactl --cpunodebind=0 --membind=0 ../build/rw-tput-sender $flags
+  sudo -E numactl --cpunodebind=0 --membind=0 $executable $flags
 fi
 
 # Check for gdb mode
 if [ "$#" -eq 2 ]; then
-  sudo -E gdb -ex run --args ../build/rw-tput-sender $flags
+  sudo -E gdb -ex run --args $executable $flags
 fi

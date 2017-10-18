@@ -16,6 +16,10 @@ static constexpr size_t kAppNumQPsPerThread =
 static constexpr size_t kAppBufSize = MB(2);
 static_assert(is_power_of_two(kAppBufSize), "");
 
+// Round RDMA source and target offset address to a cacheline boundary. This
+// can increase or decrease performance.
+static constexpr bool kAppRoundOffset = true;
+
 // The first kAppWindowSize slots are zeroed out and used for READ completion
 // detection. The remaining slots are non-zero and are fetched via READs.
 static constexpr size_t kAppPollingRegionSz = kAppWindowSize * kAppRDMASize;

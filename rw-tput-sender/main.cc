@@ -3,12 +3,12 @@
 #include <thread>
 #include "libhrd_cpp/hrd.h"
 
-static constexpr size_t kAppNumQPs = 1;
+static constexpr size_t kAppNumQPs = 2;
 static constexpr size_t kAppBufSize = 8192;
-static constexpr size_t kAppCachelineSize = 64;
+static constexpr bool kAppRoundOffset = true;
 static constexpr size_t kAppMaxPostlist = 64;
 static constexpr size_t kAppMaxServers = 64;
-static constexpr size_t kAppUnsigBatch = 32;
+static constexpr size_t kAppUnsigBatch = 64;
 static_assert(is_power_of_two(kAppUnsigBatch), "");
 
 DEFINE_uint64(machine_id, std::numeric_limits<size_t>::max(), "Machine ID");
@@ -20,7 +20,7 @@ DEFINE_uint64(do_read, 0, "Do RDMA reads?");
 DEFINE_uint64(size, 0, "RDMA size");
 DEFINE_uint64(postlist, 0, "Postlist size");
 
-double tput[kAppMaxServers];
+std::array<double, kAppMaxServers> tput;
 
 struct thread_params_t {
   size_t id;
@@ -91,15 +91,10 @@ void run_server(thread_params_t* params) {
   size_t rolling_iter = 0;  // For performance measurement
   size_t nb_tx[kAppNumQPs] = {0};
   size_t qp_i = 0;  // Round robin between QPs across postlists
+  uint64_t seed = 0xdeadbeef;
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
-
-  // The reads/writes at different postlist positions should be done to/from
-  // different cache lines.
-  size_t offset = kAppCachelineSize;
-  while (offset < FLAGS_size) offset += kAppCachelineSize;
-  assert(offset * FLAGS_postlist <= kAppBufSize);
 
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
@@ -115,9 +110,7 @@ void run_server(thread_params_t* params) {
       // Collecting stats at every server can reduce tput by ~ 10%
       if (srv_gid == 0 && rand() % 5 == 0) {
         double total_tput = 0;
-        for (size_t i = 0; i < kAppMaxServers; i++) {
-          total_tput += tput[i];
-        }
+        for (size_t i = 0; i < kAppMaxServers; i++) total_tput += tput[i];
         hrd_red_printf("main: Total throughput = %.2f\n", total_tput);
       }
 
@@ -140,6 +133,14 @@ void run_server(thread_params_t* params) {
       }
 
       wr[w_i].send_flags |= (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
+
+      size_t offset = hrd_fastrand(&seed) % kAppBufSize;
+      if (kAppRoundOffset) offset = round_up<64>(offset);
+
+      while (offset >= kAppBufSize - FLAGS_size) {
+        offset = hrd_fastrand(&seed) % kAppBufSize;
+        if (kAppRoundOffset) offset = round_up<64>(offset);
+      }
 
       sgl[w_i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[offset * w_i]);
       sgl[w_i].length = FLAGS_size;
