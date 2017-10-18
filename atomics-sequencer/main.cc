@@ -222,8 +222,8 @@ void* run_client(thread_params_t* params) {
       wr[w_i].sg_list = &sgl[w_i];
 
       wr[w_i].send_flags =
-          (nb_tx[qp_i] & kAppUnsigBatch_) == 0 ? IBV_SEND_SIGNALED : 0;
-      if ((nb_tx[qp_i] & kAppUnsigBatch_) == 0 && nb_tx[qp_i] > 0) {
+          nb_tx[qp_i] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      if (nb_tx[qp_i] % kAppUnsigBatch == 0 && nb_tx[qp_i] > 0) {
         hrd_poll_cq(cb->conn_cq[qp_i], 1, &wc);
       }
 

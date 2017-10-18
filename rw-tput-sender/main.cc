@@ -3,7 +3,7 @@
 #include <thread>
 #include "libhrd_cpp/hrd.h"
 
-static constexpr size_t kAppNumQPs = 2;
+static constexpr size_t kAppNumQPs = 1;
 static constexpr size_t kAppBufSize = 8192;
 static constexpr bool kAppRoundOffset = true;
 static constexpr size_t kAppMaxPostlist = 64;
@@ -127,8 +127,8 @@ void run_server(thread_params_t* params) {
       wr[w_i].sg_list = &sgl[w_i];
 
       wr[w_i].send_flags =
-          (nb_tx[qp_i] % kAppUnsigBatch) == 0 ? IBV_SEND_SIGNALED : 0;
-      if ((nb_tx[qp_i] % kAppUnsigBatch) == 0 && nb_tx[qp_i] != 0) {
+          nb_tx[qp_i] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      if (nb_tx[qp_i] % kAppUnsigBatch == 0 && nb_tx[qp_i] != 0) {
         hrd_poll_cq(cb->conn_cq[qp_i], 1, &wc);
       }
 
@@ -136,17 +136,16 @@ void run_server(thread_params_t* params) {
 
       size_t offset = hrd_fastrand(&seed) % kAppBufSize;
       if (kAppRoundOffset) offset = round_up<64>(offset);
-
-      while (offset >= kAppBufSize - FLAGS_size) {
+      while (unlikely(offset >= kAppBufSize - FLAGS_size)) {
         offset = hrd_fastrand(&seed) % kAppBufSize;
         if (kAppRoundOffset) offset = round_up<64>(offset);
       }
 
-      sgl[w_i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[offset * w_i]);
+      sgl[w_i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[offset]);
       sgl[w_i].length = FLAGS_size;
       sgl[w_i].lkey = cb->conn_buf_mr->lkey;
 
-      wr[w_i].wr.rdma.remote_addr = clt_qp[qp_i]->buf_addr + (offset * w_i);
+      wr[w_i].wr.rdma.remote_addr = clt_qp[qp_i]->buf_addr + offset;
       wr[w_i].wr.rdma.rkey = clt_qp[qp_i]->rkey;
 
       nb_tx[qp_i]++;
@@ -218,7 +217,7 @@ int main(int argc, char* argv[]) {
     // Server
     rt_assert(FLAGS_machine_id == std::numeric_limits<size_t>::max(), "");
     rt_assert(FLAGS_size > 0, "");
-    if (FLAGS_do_read == 0) rt_assert(FLAGS_size <= kHrdMaxInline, "");
+    if (FLAGS_do_read == 0) rt_assert(FLAGS_size <= kHrdMaxInline, "Inl error");
 
     rt_assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist, "");
   }

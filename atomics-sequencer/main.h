@@ -38,7 +38,6 @@ static constexpr size_t kAppNumClients = 32;
 static constexpr size_t kAppQPsPerClient = 2;
 
 static constexpr size_t kAppUnsigBatch = 32;
-static constexpr size_t kAppUnsigBatch_ = (kAppUnsigBatch - 1);
 
 struct thread_params_t {
   size_t id;  // Global ID of this client or server thread

@@ -8,9 +8,7 @@
 static constexpr size_t kAppBufSize = (8 * 1024 * 1024);
 static constexpr size_t kAppCachelineSize = 64;
 static constexpr size_t kAppMaxPostlist = 64;
-
 static constexpr size_t kAppUnsigBatch = 64;
-static constexpr size_t kAppUnsigBatch_ = (kAppUnsigBatch - 1);
 
 DEFINE_uint64(num_threads, 0, "Number of threads");
 DEFINE_uint64(is_client, 0, "Is this process a client?");
@@ -157,8 +155,8 @@ void run_client(thread_params_t* params) {
       wr[w_i].sg_list = &sgl[w_i];
 
       wr[w_i].send_flags =
-          (nb_tx & kAppUnsigBatch_) == 0 ? IBV_SEND_SIGNALED : 0;
-      if ((nb_tx & kAppUnsigBatch_) == 0 && nb_tx > 0) {
+          nb_tx % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      if (nb_tx % kAppUnsigBatch == 0 && nb_tx > 0) {
         hrd_poll_cq(cb->conn_cq[0], 1, &wc);
       }
 
