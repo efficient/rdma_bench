@@ -18,7 +18,7 @@ flags="
 	--num_threads $num_server_threads \
 	--dual_port 1 \
 	--is_client 0 \
-	--size 0 \
+	--size 32 \
 	--postlist 16
 "
 
