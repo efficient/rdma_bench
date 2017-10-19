@@ -86,7 +86,8 @@ set(BENCHMARKS
   rw-tput-receiver
   rw-tput-sender
   ud-sender
-  atomics-sequencer)
+  atomics-sequencer
+  sender-scalability)
 
 foreach(bench IN LISTS BENCHMARKS)
   add_executable(${bench} ${bench}/main.cc ${HRD_SOURCES})

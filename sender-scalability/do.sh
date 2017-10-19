@@ -1,2 +1,1 @@
-make clean
-make
+( cd ../; make sender-scalability )

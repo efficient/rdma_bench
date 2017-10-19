@@ -1,32 +1,43 @@
-# A function to echo in blue color
-function blue() {
-	es=`tput setaf 4`
-	ee=`tput sgr0`
-	echo "${es}$1${ee}"
-}
+#!/usr/bin/env bash
+source $(dirname $0)/../scripts/utils.sh
+source $(dirname $0)/../scripts/mlx_env.sh
+export HRD_REGISTRY_IP="fawn-pluto0"
 
-export HRD_REGISTRY_IP="10.113.1.47"
-export MLX5_SINGLE_THREADED=1
+drop_shm
 
-if [ "$#" -ne 1 ]; then
-    blue "Illegal number of parameters"
-	blue "Usage: ./run-machine.sh <machine_number>"
+# lsync messes up permissions
+executable="../build/rw-tput-sender"
+chmod +x $executable
+
+blue "Running client thread"
+
+# Check number of arguments
+if [ "$#" -gt 2 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
 	exit
 fi
 
-blue "Removing shm keys 0--200"
-for i in `seq 0 200`; do
-	sudo ipcrm -M $i 1>/dev/null 2>/dev/null
-done
+if [ "$#" -eq 0 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
+	exit
+fi
 
-: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
+flags="\
+	--dual_port 1 \
+	--use_uc 0 \
+  --run_time 10 \
+	--is_client 1 \
+	--machine_id $1
+"
 
-blue "Starting client"
+# Check for non-gdb mode
+if [ "$#" -eq 1 ]; then
+  sudo -E numactl --cpunodebind=0 --membind=0 $executable $flags
+fi
 
-sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
-	--dual-port 1 \
-	--run-time 10 \
-	--use-uc 0 \
-	--is-client 1 \
-	--machine-id $1 \
+# Check for gdb mode
+if [ "$#" -eq 2 ]; then
+  sudo -E gdb -ex run --args $executable $flags
+fi
