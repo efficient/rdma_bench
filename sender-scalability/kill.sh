@@ -1,2 +1,2 @@
-sudo killall main
+sudo killall sender-scalability
 sudo killall memcached

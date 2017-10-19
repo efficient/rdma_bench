@@ -6,7 +6,7 @@ export HRD_REGISTRY_IP="fawn-pluto0"
 drop_shm
 
 # lsync messes up permissions
-executable="../build/rw-tput-sender"
+executable="../build/sender-scalability"
 chmod +x $executable
 
 blue "Running client thread"

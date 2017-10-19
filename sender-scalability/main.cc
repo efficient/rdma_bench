@@ -16,13 +16,13 @@ static constexpr size_t kAppRunTimeSlack = 10;
 // For WRITEs, this is hard to do unless we make every send() signaled. So,
 // the number of per-thread outstanding operations per thread with WRITEs is
 // O(NUM_CLIENTS * kAppUnsigBatch).
-static constexpr size_t kAppWindowSize = 16;
+static constexpr size_t kAppWindowSize = 32;
 static_assert(is_power_of_two(kAppWindowSize), "");
 
 // Sweep paramaters
 static constexpr size_t kAppNumServers = 1;
-static constexpr size_t kAppNumClients = 1;  // Total client QPs in cluster
-static constexpr size_t kAppNumClientMachines = 1;
+static constexpr size_t kAppNumClients = 16;  // Total client QPs in cluster
+static constexpr size_t kAppNumClientMachines = 2;
 static constexpr size_t kAppUnsigBatch = 4;
 
 static_assert(kHrdSQDepth == 128, "");  // Small queues => more scalaing
@@ -121,7 +121,7 @@ void run_server(thread_params_t* params) {
           "main: Server %zu: %.2f ops. Total active QPs = %zu. "
           "Outstanding ops per thread (for READs) = %zu. "
           "Seconds = %.1f of %zu.\n",
-          srv_gid, tput, (kAppNumServers * kAppNumClients) / 2, kAppWindowSize,
+          srv_gid, tput, kAppNumServers * kAppNumClients, kAppWindowSize,
           run_seconds, FLAGS_run_time);
 
       params->tput[srv_gid] = tput;
