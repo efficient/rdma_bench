@@ -154,8 +154,7 @@ void run_client(thread_params_t* params) {
       wr[w_i].next = (w_i == FLAGS_postlist - 1) ? nullptr : &wr[w_i + 1];
       wr[w_i].sg_list = &sgl[w_i];
 
-      wr[w_i].send_flags =
-          nb_tx % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      wr[w_i].send_flags = nb_tx % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
       if (nb_tx % kAppUnsigBatch == 0 && nb_tx > 0) {
         hrd_poll_cq(cb->conn_cq[0], 1, &wc);
       }

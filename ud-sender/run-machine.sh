@@ -1,33 +1,43 @@
-# A function to echo in blue color
-function blue() {
-	es=`tput setaf 4`
-	ee=`tput sgr0`
-	echo "${es}$1${ee}"
-}
+#!/usr/bin/env bash
+source $(dirname $0)/../scripts/utils.sh
+source $(dirname $0)/../scripts/mlx_env.sh
+export HRD_REGISTRY_IP="fawn-pluto0"
 
-export HRD_REGISTRY_IP="10.113.1.47"
+drop_shm
 
-if [ "$#" -ne 1 ]; then
-    blue "Illegal number of parameters"
-	blue "Usage: ./run-machine.sh <machine_number>"
+# lsync messes up permissions
+executable="../build/ud-sender"
+chmod +x $executable
+
+num_threads=11			# Threads per client machine
+blue "Running $num_threads client threads"
+
+# Check number of arguments
+if [ "$#" -gt 2 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
 	exit
 fi
 
-blue "Removing hugepages"
-shm-rm.sh 1>/dev/null 2>/dev/null
+if [ "$#" -eq 0 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
+	exit
+fi
 
-# When there are 2 ports, we need to launch 64 client threads (32 per port)
-num_threads=8			# Threads per client machine
-: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
+flags="\
+  --num_threads $num_threads \
+	--dual_port 1 \
+	--is_client 1 \
+	--machine_id $1
+"
 
-blue "Running $num_threads client threads"
+# Check for non-gdb mode
+if [ "$#" -eq 1 ]; then
+  sudo -E numactl --cpunodebind=0 --membind=0 $executable $flags
+fi
 
-sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
-	--num-threads $num_threads \
-	--dual-port 0 \
-	--is-client 1 \
-	--machine-id $1 \
-	--size 16 \
-
-#debug: run --num-threads 1 --dual-port 1 --is-client 1 --machine-id 0 --size 32 --window 128
+# Check for gdb mode
+if [ "$#" -eq 2 ]; then
+  sudo -E gdb -ex run --args $executable $flags
+fi
