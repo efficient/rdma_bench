@@ -9,7 +9,7 @@ drop_shm
 executable="../build/ud-receiver"
 chmod +x $executable
 
-num_threads=11			# Threads per client machine
+num_threads=1			# Threads per client machine
 blue "Running $num_threads client threads"
 
 # Check number of arguments
@@ -30,6 +30,7 @@ flags="\
 	--dual_port 0 \
   --postlist 16 \
 	--is_client 1 \
+  --size 32 \
 	--machine_id $1
 "
 

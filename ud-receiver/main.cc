@@ -43,8 +43,8 @@ void run_server(thread_params_t* params) {
     // Fill this QP with recvs before publishing it to clients
     for (size_t i = 0; i < kHrdRQDepth; i++) {
       hrd_post_dgram_recv(cb->dgram_qp[qp_i],
-                          const_cast<uint8_t*>(cb->dgram_buf), FLAGS_size + 40,
-                          cb->dgram_buf_mr->lkey);
+                          const_cast<uint8_t*>(&cb->dgram_buf[0]),
+                          FLAGS_size + 40, cb->dgram_buf_mr->lkey);
     }
 
     char srv_name[kHrdQPNameSize];
@@ -83,6 +83,14 @@ void run_server(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
+    /*
+    int num_comps = 0;
+    if (cb->dgram_buf[40] != 0) {
+      num_comps++;
+      cb->dgram_buf[40] = 0;
+    }
+    */
+
     int num_comps = ibv_poll_cq(cb->dgram_recv_cq[qp_i], FLAGS_postlist, wc);
     rt_assert(num_comps >= 0, "poll_cq() for RECV CQ failed");
     if (num_comps == 0) continue;
@@ -102,7 +110,7 @@ void run_server(thread_params_t* params) {
     }
 
     int ret = ibv_post_recv(cb->dgram_qp[qp_i], &recv_wr[0], &bad_recv_wr);
-    rt_assert(ret == 0, "ibv_post_recv() error");
+    rt_assert(ret == 0, "ibv_post_recv() error " + std::to_string(ret));
 
     rolling_iter += static_cast<size_t>(num_comps);
     mod_add_one<kAppNumQPs>(qp_i);
@@ -128,11 +136,6 @@ void run_client(thread_params_t* params) {
 
   // Buffer to send packets from. Set to a non-zero value.
   memset(const_cast<uint8_t*>(cb->dgram_buf), 1, kAppBufSize);
-
-  // Buffer to send requests from
-  uint8_t* req_buf = reinterpret_cast<uint8_t*>(malloc(FLAGS_size));
-  assert(req_buf != nullptr);
-  memset(req_buf, clt_gid, FLAGS_size);
 
   printf("main: Client %zu waiting for server %zu\n", clt_gid, srv_gid);
 
@@ -201,7 +204,7 @@ void run_client(thread_params_t* params) {
 
       wr[w_i].send_flags |= IBV_SEND_INLINE;
 
-      sgl[w_i].addr = reinterpret_cast<uint64_t>(req_buf);
+      sgl[w_i].addr = reinterpret_cast<uint64_t>(cb->dgram_buf);
       sgl[w_i].length = FLAGS_size;
 
       rolling_iter++;
@@ -221,9 +224,10 @@ int main(int argc, char* argv[]) {
   rt_assert(FLAGS_num_threads >= 1, "Invalid num_threads");
   rt_assert(FLAGS_dual_port <= 1, "Invalid dual_port");
   rt_assert(FLAGS_is_client <= 1, "Invalid is_client");
-  rt_assert(FLAGS_size <= kHrdMaxInline, "Invalid SEND size");
   rt_assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist,
             "Invalid postlist");
+  rt_assert(FLAGS_size > 0 && FLAGS_size + 40 <= kAppBufSize,
+            "Invalid transfer size");
 
   if (FLAGS_is_client == 1) {
     rt_assert(FLAGS_machine_id != std::numeric_limits<size_t>::max(),

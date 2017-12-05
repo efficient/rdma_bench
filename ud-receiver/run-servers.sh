@@ -5,7 +5,7 @@ export HRD_REGISTRY_IP="specialnode.RDMA.fawn.apt.emulab.net"
 
 drop_shm
 
-num_threads=14
+num_threads=1
 
 blue "Reset server QP registry"
 sudo killall memcached
