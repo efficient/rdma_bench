@@ -7,7 +7,7 @@
 
 static constexpr size_t kAppNumQPs = 1;  // UD QPs used by server for RECVs
 static constexpr size_t kAppBufSize = 4096;
-static constexpr size_t kAppMaxPostlist = 128;
+static constexpr size_t kAppMaxPostlist = 64;
 static constexpr size_t kAppUnsigBatch = 64;
 static_assert(is_power_of_two(kAppUnsigBatch), "");
 
@@ -21,7 +21,7 @@ DEFINE_uint64(num_threads, 0, "Number of threads");
 DEFINE_uint64(is_client, 0, "Is this process a client?");
 DEFINE_uint64(dual_port, 0, "Use two ports?");
 DEFINE_uint64(size, 0, "RDMA size");
-DEFINE_uint64(postlist, kAppMaxPostlist, "Postlist size");
+DEFINE_uint64(postlist, std::numeric_limits<size_t>::max(), "Postlist size");
 
 void run_server(thread_params_t* params) {
   size_t srv_gid = params->id;  // Global ID of this server thread
@@ -148,14 +148,14 @@ void run_client(thread_params_t* params) {
 
   printf("main: Client %zu found server! Now posting SENDs.\n", clt_gid);
 
-  // We need only 1 ah because a client contacts only 1 server
-  struct ibv_ah_attr ah_attr = {
-      .is_global = 0,
-      .dlid = srv_qp[1]->lid,
-      .sl = 0,
-      .src_path_bits = 0,
-      .port_num = cb->resolve.dev_port_id,
-  };
+  // We need only one address handle because we contacts only one server
+  struct ibv_ah_attr ah_attr;
+  memset(&ah_attr, 0, sizeof(ah_attr));
+  ah_attr.is_global = 0;
+  ah_attr.dlid = srv_qp[0]->lid;
+  ah_attr.sl = 0;
+  ah_attr.src_path_bits = 0;
+  ah_attr.port_num = cb->resolve.dev_port_id;
 
   struct ibv_ah* ah = ibv_create_ah(cb->pd, &ah_attr);
   assert(ah != nullptr);
@@ -222,12 +222,12 @@ int main(int argc, char* argv[]) {
   rt_assert(FLAGS_dual_port <= 1, "Invalid dual_port");
   rt_assert(FLAGS_is_client <= 1, "Invalid is_client");
   rt_assert(FLAGS_size <= kHrdMaxInline, "Invalid SEND size");
+  rt_assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist,
+            "Invalid postlist");
 
   if (FLAGS_is_client == 1) {
     rt_assert(FLAGS_machine_id != std::numeric_limits<size_t>::max(),
               "Invalid machine_id");
-    rt_assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist,
-              "Invalid postlist");
 
     rt_assert(FLAGS_postlist <= kAppUnsigBatch, "Postlist check failed");
     static_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "Queue capacity check");

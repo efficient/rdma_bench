@@ -22,8 +22,8 @@
 
 #define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
 
-static constexpr size_t kHrdSQDepth = 128;  // Depth of all SEND queues
-static constexpr size_t kHrdRQDepth = 4;    // Depth of all RECV queues
+static constexpr size_t kHrdSQDepth = 128;   // Depth of all SEND queues
+static constexpr size_t kHrdRQDepth = 2048;  // Depth of all RECV queues
 
 static constexpr uint32_t kHrdInvalidNUMANode = 9;
 static constexpr uint32_t kHrdDefaultPSN = 3185;
