@@ -36,7 +36,7 @@ void run_server(thread_params_t* params) {
   auto* cb = hrd_ctrl_blk_init(srv_gid, ib_port_index, kHrdInvalidNUMANode,
                                nullptr, &dgram_config);
 
-  // Buffer to receive packets into
+  // Buffer to receive packets into. Set to zero.
   memset(const_cast<uint8_t*>(cb->dgram_buf), 0, kAppBufSize);
 
   for (size_t qp_i = 0; qp_i < kAppNumQPs; qp_i++) {
@@ -58,12 +58,12 @@ void run_server(thread_params_t* params) {
   struct ibv_wc wc[kAppMaxPostlist];
   struct ibv_sge sgl[kAppMaxPostlist];
   size_t rolling_iter = 0;  // For throughput measurement
+  size_t qp_i = 0;
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  size_t qp_i = 0;
-  while (1) {
+  while (true) {
     if (rolling_iter >= MB(8)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
@@ -126,8 +126,8 @@ void run_client(thread_params_t* params) {
   auto* cb = hrd_ctrl_blk_init(clt_local_hid, ib_port_index,
                                kHrdInvalidNUMANode, nullptr, &dgram_config);
 
-  // Buffer to send packets from
-  memset(const_cast<uint8_t*>(cb->dgram_buf), 0, kAppBufSize);
+  // Buffer to send packets from. Set to a non-zero value.
+  memset(const_cast<uint8_t*>(cb->dgram_buf), 1, kAppBufSize);
 
   // Buffer to send requests from
   uint8_t* req_buf = reinterpret_cast<uint8_t*>(malloc(FLAGS_size));
@@ -165,12 +165,12 @@ void run_client(thread_params_t* params) {
   struct ibv_sge sgl[kAppMaxPostlist];
   size_t rolling_iter = 0;  // For throughput measurement
   size_t nb_tx = 0;
+  size_t qp_i = 0;
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  size_t qp_i = 0;
-  while (1) {
+  while (true) {
     if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
