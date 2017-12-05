@@ -22,6 +22,7 @@
 
 #define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
 
+static constexpr size_t kHrdMaxUDQPs = 256;  // Maximum number of UD QPs
 static constexpr size_t kHrdSQDepth = 128;   // Depth of all SEND queues
 static constexpr size_t kHrdRQDepth = 2048;  // Depth of all RECV queues
 
@@ -32,7 +33,7 @@ static constexpr size_t kHrdMaxLID = 256;
 
 static constexpr size_t kHrdQPNameSize = 200;
 
-// This needs to be a macro because we don't have OFED for Debian
+// This needs to be a macro because we don't have Mellanox OFED for Debian
 #define kHrdMlx5Atomics false
 static constexpr size_t kHrdMaxInline = 60;
 
@@ -110,8 +111,8 @@ struct hrd_ctrl_blk_t {
 
   // Datagram QPs
   size_t num_dgram_qps;
-  struct ibv_qp** dgram_qp;
-  struct ibv_cq **dgram_send_cq, **dgram_recv_cq;
+  struct ibv_qp* dgram_qp[kHrdMaxUDQPs];
+  struct ibv_cq *dgram_send_cq[kHrdMaxUDQPs], *dgram_recv_cq[kHrdMaxUDQPs];
   volatile uint8_t* dgram_buf;  // A buffer for RECVs on dgram QPs
   size_t dgram_buf_size;
   int dgram_buf_shm_key;

@@ -33,7 +33,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
         dgram_config->buf_shm_key);
   }
 
-  // @local_hid can be anything: it's just control block identifier that is
+  // @local_hid can be anything. It's used for just printing.
   assert(port_index <= 16);
   assert(numa_node <= kHrdInvalidNUMANode);
 
@@ -82,10 +82,6 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
   // Create datagram QPs and transition them RTS.
   // Create and register datagram RDMA buffer.
   if (cb->num_dgram_qps >= 1) {
-    cb->dgram_qp = new ibv_qp*[cb->num_dgram_qps];
-    cb->dgram_send_cq = new ibv_cq*[cb->num_dgram_qps];
-    cb->dgram_recv_cq = new ibv_cq*[cb->num_dgram_qps];
-
     hrd_create_dgram_qps(cb);
 
     if (dgram_config->prealloc_buf == nullptr) {
@@ -258,47 +254,52 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
 
 // Create datagram QPs and transition them to RTS
 void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
-  assert(cb->dgram_qp != nullptr && cb->dgram_send_cq != nullptr &&
-         cb->dgram_recv_cq != nullptr && cb->pd != nullptr &&
-         cb->resolve.ib_ctx != nullptr);
+  assert(cb->resolve.ib_ctx != nullptr && cb->pd != nullptr);
   assert(cb->num_dgram_qps >= 1 && cb->resolve.dev_port_id >= 1);
 
   for (size_t i = 0; i < cb->num_dgram_qps; i++) {
-    size_t recv_queue_depth = (i == 0) ? kHrdRQDepth : 1;
+    struct ibv_exp_cq_init_attr cq_attr;
+    memset(&cq_attr, 0, sizeof(cq_attr));
 
-    cb->dgram_send_cq[i] =
-        ibv_create_cq(cb->resolve.ib_ctx, kHrdSQDepth, nullptr, nullptr, 0);
+    cb->dgram_send_cq[i] = ibv_exp_create_cq(cb->resolve.ib_ctx, kHrdSQDepth,
+                                             nullptr, nullptr, 0, &cq_attr);
     assert(cb->dgram_send_cq[i] != nullptr);
 
-    cb->dgram_recv_cq[i] = ibv_create_cq(cb->resolve.ib_ctx, recv_queue_depth,
-                                         nullptr, nullptr, 0);
+    size_t recv_queue_depth = (i == 0) ? kHrdRQDepth : 1;
+    cb->dgram_recv_cq[i] = ibv_exp_create_cq(cb->resolve.ib_ctx, recv_queue_depth,
+                                         nullptr, nullptr, 0, &cq_attr);
     assert(cb->dgram_recv_cq[i] != nullptr);
 
-    // Initialize creation attributes
-    struct ibv_qp_init_attr create_attr;
-    memset(&create_attr, 0, sizeof(struct ibv_qp_init_attr));
+    // Create the QP
+    struct ibv_exp_qp_init_attr create_attr;
+    memset(&create_attr, 0, sizeof(create_attr));
+    create_attr.comp_mask =
+        IBV_EXP_QP_INIT_ATTR_PD | IBV_EXP_QP_INIT_ATTR_CREATE_FLAGS;
+
+    create_attr.pd = cb->pd;
     create_attr.send_cq = cb->dgram_send_cq[i];
     create_attr.recv_cq = cb->dgram_recv_cq[i];
-    create_attr.qp_type = IBV_QPT_UD;
-
     create_attr.cap.max_send_wr = kHrdSQDepth;
-    create_attr.cap.max_recv_wr = recv_queue_depth;
     create_attr.cap.max_send_sge = 1;
-    create_attr.cap.max_recv_sge = 1;
     create_attr.cap.max_inline_data = kHrdMaxInline;
 
-    cb->dgram_qp[i] = ibv_create_qp(cb->pd, &create_attr);
+    create_attr.srq = nullptr;
+    create_attr.cap.max_recv_wr = recv_queue_depth;
+    create_attr.cap.max_recv_sge = 1;
+
+    create_attr.qp_type = IBV_QPT_UD;
+    cb->dgram_qp[i] = ibv_exp_create_qp(cb->resolve.ib_ctx, &create_attr);
     assert(cb->dgram_qp[i] != nullptr);
 
     // INIT state
-    struct ibv_qp_attr init_attr;
-    memset(&init_attr, 0, sizeof(struct ibv_qp_attr));
+    struct ibv_exp_qp_attr init_attr;
+    memset(&init_attr, 0, sizeof(init_attr));
     init_attr.qp_state = IBV_QPS_INIT;
     init_attr.pkey_index = 0;
     init_attr.port_num = cb->resolve.dev_port_id;
     init_attr.qkey = kHrdDefaultQKey;
 
-    if (ibv_modify_qp(
+    if (ibv_exp_modify_qp(
             cb->dgram_qp[i], &init_attr,
             IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_QKEY)) {
       fprintf(stderr, "Failed to modify dgram QP to INIT\n");
@@ -306,21 +307,23 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
     }
 
     // RTR state
-    struct ibv_qp_attr rtr_attr;
-    memset(&rtr_attr, 0, sizeof(struct ibv_qp_attr));
+    struct ibv_exp_qp_attr rtr_attr;
+    memset(&rtr_attr, 0, sizeof(rtr_attr));
     rtr_attr.qp_state = IBV_QPS_RTR;
 
-    if (ibv_modify_qp(cb->dgram_qp[i], &rtr_attr, IBV_QP_STATE)) {
+    if (ibv_exp_modify_qp(cb->dgram_qp[i], &rtr_attr, IBV_QP_STATE)) {
       fprintf(stderr, "Failed to modify dgram QP to RTR\n");
       exit(-1);
     }
 
-    // Reuse rtr_attr for RTS
-    rtr_attr.qp_state = IBV_QPS_RTS;
-    rtr_attr.sq_psn = kHrdDefaultPSN;
+    // RTS state
+    struct ibv_exp_qp_attr rts_attr;
+    memset(&rts_attr, 0, sizeof(rts_attr));
+    rts_attr.qp_state = IBV_QPS_RTS;
+    rts_attr.sq_psn = kHrdDefaultPSN;
 
-    if (ibv_modify_qp(cb->dgram_qp[i], &rtr_attr,
-                      IBV_QP_STATE | IBV_QP_SQ_PSN)) {
+    if (ibv_exp_modify_qp(cb->dgram_qp[i], &rts_attr,
+                          IBV_QP_STATE | IBV_QP_SQ_PSN)) {
       fprintf(stderr, "Failed to modify dgram QP to RTS\n");
       exit(-1);
     }
