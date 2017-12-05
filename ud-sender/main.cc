@@ -8,7 +8,6 @@ static constexpr size_t kAppNumClients = 32;
 static_assert(is_power_of_two(kAppNumClients), "");
 
 static constexpr size_t kAppNumQPs = 1;
-static constexpr size_t kAppMaxNumServers = 32;
 static constexpr size_t kAppBufSize = 4096;
 static constexpr size_t kAppMaxPostlist = 128;
 static constexpr size_t kAppUnsigBatch = 64;
@@ -78,7 +77,7 @@ void run_server(thread_params_t* params) {
   struct ibv_sge sgl[kAppMaxPostlist];
   size_t rolling_iter = 0;         // For throughput measurement
   size_t nb_tx[kAppNumQPs] = {0};  // For selective signaling
-  size_t ud_qp_i = 0;              // Round-robin between QPs across postlists
+  size_t qp_i = 0;                 // Round-robin between QPs across postlists
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
@@ -103,7 +102,7 @@ void run_server(thread_params_t* params) {
     }
 
     for (size_t w_i = 0; w_i < FLAGS_postlist; w_i++) {
-      size_t cn = nb_tx[ud_qp_i] % kAppNumClients;
+      size_t cn = nb_tx[qp_i] % kAppNumClients;
 
       wr[w_i].wr.ud.ah = ah[cn];
       wr[w_i].wr.ud.remote_qpn = clt_qp[cn]->qpn;
@@ -115,9 +114,9 @@ void run_server(thread_params_t* params) {
       wr[w_i].sg_list = &sgl[w_i];
 
       wr[w_i].send_flags =
-          nb_tx[ud_qp_i] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
-      if (nb_tx[ud_qp_i] % kAppUnsigBatch == 0 && nb_tx[ud_qp_i] > 0) {
-        hrd_poll_cq(cb->dgram_send_cq[ud_qp_i], 1, wc);
+          nb_tx[qp_i] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      if (nb_tx[qp_i] % kAppUnsigBatch == 0 && nb_tx[qp_i] > 0) {
+        hrd_poll_cq(cb->dgram_send_cq[qp_i], 1, wc);
       }
 
       wr[w_i].send_flags |= IBV_SEND_INLINE;
@@ -125,14 +124,14 @@ void run_server(thread_params_t* params) {
       sgl[w_i].addr = reinterpret_cast<uint64_t>(resp_buf);
       sgl[w_i].length = FLAGS_size;
 
-      nb_tx[ud_qp_i]++;
+      nb_tx[qp_i]++;
       rolling_iter++;
     }
 
-    int ret = ibv_post_send(cb->dgram_qp[ud_qp_i], &wr[0], &bad_send_wr);
+    int ret = ibv_post_send(cb->dgram_qp[qp_i], &wr[0], &bad_send_wr);
     rt_assert(ret == 0, "ibv_post_send error");
 
-    mod_add_one<kAppNumQPs>(ud_qp_i);
+    mod_add_one<kAppNumQPs>(qp_i);
   }
 }
 

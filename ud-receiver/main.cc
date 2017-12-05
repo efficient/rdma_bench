@@ -1,71 +1,81 @@
-#include "main.h"
-#include <getopt.h>
-#include "hrd.h"
+#include <gflags/gflags.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits>
+#include <thread>
+#include "libhrd_cpp/hrd.h"
 
-void* run_server(void* arg) {
-  int i;
-  int ud_qp_i = 0;  // UD QP index
-  struct thread_params params = *(struct thread_params*)arg;
-  int srv_gid = params.id;  // Global ID of this server thread
-  int ib_port_index = params.dual_port == 0 ? 0 : srv_gid % 2;
+static constexpr size_t kAppNumQPs = 1;  // UD QPs used by server for RECVs
+static constexpr size_t kAppBufSize = 4096;
+static constexpr size_t kAppMaxPostlist = 128;
+static constexpr size_t kAppUnsigBatch = 64;
+static_assert(is_power_of_two(kAppUnsigBatch), "");
 
-  struct hrd_ctrl_blk* cb = hrd_ctrl_blk_init(
-      srv_gid,                    // local_hid
-      ib_port_index, -1,          // port_index, numa_node_id
-      0, 0,                       // conn qps, use uc
-      NULL, 0, -1,                // prealloc conn buf, conn buf size, key
-      NUM_UD_QPS, BUF_SIZE, -1);  // num_dgram_qps, dgram_buf_size, key
+struct thread_params_t {
+  size_t id;
+  double* tput;
+};
 
-  // Buffer to receive requests into
-  memset((void*)cb->dgram_buf, 0, BUF_SIZE);
+DEFINE_uint64(machine_id, std::numeric_limits<size_t>::max(), "Machine ID");
+DEFINE_uint64(num_threads, 0, "Number of threads");
+DEFINE_uint64(is_client, 0, "Is this process a client?");
+DEFINE_uint64(dual_port, 0, "Use two ports?");
+DEFINE_uint64(size, 0, "RDMA size");
+DEFINE_uint64(postlist, kAppMaxPostlist, "Postlist size");
 
-  for (ud_qp_i = 0; ud_qp_i < NUM_UD_QPS; ud_qp_i++) {
+void run_server(thread_params_t* params) {
+  size_t srv_gid = params->id;  // Global ID of this server thread
+  size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : srv_gid % 2;
+
+  hrd_dgram_config_t dgram_config;
+  dgram_config.num_qps = kAppNumQPs;
+  dgram_config.prealloc_buf = nullptr;
+  dgram_config.buf_size = kAppBufSize;
+  dgram_config.buf_shm_key = -1;
+
+  auto* cb = hrd_ctrl_blk_init(srv_gid, ib_port_index, kHrdInvalidNUMANode,
+                               nullptr, &dgram_config);
+
+  // Buffer to receive packets into
+  memset(const_cast<uint8_t*>(cb->dgram_buf), 0, kAppBufSize);
+
+  for (size_t qp_i = 0; qp_i < kAppNumQPs; qp_i++) {
     // Fill this QP with recvs before publishing it to clients
-    for (i = 0; i < HRD_Q_DEPTH; i++) {
-      hrd_post_dgram_recv(cb->dgram_qp[ud_qp_i], (void*)cb->dgram_buf,
-                          params.size + 40,  // Space for GRH
+    for (size_t i = 0; i < kHrdRQDepth; i++) {
+      hrd_post_dgram_recv(cb->dgram_qp[qp_i],
+                          const_cast<uint8_t*>(cb->dgram_buf), FLAGS_size + 40,
                           cb->dgram_buf_mr->lkey);
     }
 
-    char srv_name[HRD_QP_NAME_SIZE];
-    sprintf(srv_name, "server-%d-%d", srv_gid, ud_qp_i);
-
-    hrd_publish_dgram_qp(cb, ud_qp_i, srv_name);
+    char srv_name[kHrdQPNameSize];
+    sprintf(srv_name, "server-%zu-%zu", srv_gid, qp_i);
+    hrd_publish_dgram_qp(cb, qp_i, srv_name);
   }
-  ud_qp_i = 0;
 
-  printf("server: Server %d published QPs. Now polling..\n", srv_gid);
+  printf("main: Server %zu published QPs. Now polling.\n", srv_gid);
 
-  struct ibv_recv_wr recv_wr[MAX_POSTLIST], *bad_recv_wr;
-  struct ibv_wc wc[MAX_POSTLIST];
-  struct ibv_sge sgl[MAX_POSTLIST];
-  long long rolling_iter = 0;  // For throughput measurement
-  int w_i = 0;                 // Window index
-  int ret;
+  struct ibv_recv_wr recv_wr[kAppMaxPostlist], *bad_recv_wr;
+  struct ibv_wc wc[kAppMaxPostlist];
+  struct ibv_sge sgl[kAppMaxPostlist];
+  size_t rolling_iter = 0;  // For throughput measurement
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
-  int recv_offset = 0;
-  while (recv_offset < params.size + 40) {
-    recv_offset += CACHELINE_SIZE;
-  }
-  assert(recv_offset * params.postlist <= BUF_SIZE);
-
+  size_t qp_i = 0;
   while (1) {
-    if (rolling_iter >= M_8) {
+    if (rolling_iter >= MB(8)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
-                       (double)(end.tv_nsec - start.tv_nsec) / 1000000000;
-      printf("main: Server %d: %.2f IOPS. \n", srv_gid, rolling_iter / seconds);
+                       (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+      printf("main: Server %zu: %.2f IOPS. \n", srv_gid,
+             rolling_iter / seconds);
 
-      params.tput[srv_gid] = rolling_iter / seconds;
+      params->tput[srv_gid] = rolling_iter / seconds;
       if (srv_gid == 0) {
-        double total_tput = 0;
-        for (i = 0; i < NUM_SERVER_THREADS; i++) {
-          total_tput += params.tput[i];
-        }
-        hrd_red_printf("main: Total tput %.2f IOPS.\n", total_tput);
+        double tot = 0;
+        for (size_t i = 0; i < FLAGS_num_threads; i++) tot += params->tput[i];
+        hrd_red_printf("main: Total tput %.2f IOPS.\n", tot);
       }
 
       rolling_iter = 0;
@@ -73,238 +83,178 @@ void* run_server(void* arg) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    int num_comps =
-        ibv_poll_cq(cb->dgram_recv_cq[ud_qp_i], params.postlist, wc);
-    if (num_comps == 0) {
-      continue;
-    }
+    int num_comps = ibv_poll_cq(cb->dgram_recv_cq[qp_i], FLAGS_postlist, wc);
+    rt_assert(num_comps >= 0, "poll_cq() for RECV CQ failed");
+    if (num_comps == 0) continue;
 
     // Post a batch of RECVs
-    for (w_i = 0; w_i < num_comps; w_i++) {
+    for (size_t w_i = 0; w_i < static_cast<size_t>(num_comps); w_i++) {
       assert(wc[w_i].imm_data == 3185);
-      sgl[w_i].length = params.size + 40;
+      sgl[w_i].length = FLAGS_size + 40;
       sgl[w_i].lkey = cb->dgram_buf_mr->lkey;
-      sgl[w_i].addr = (uintptr_t)&cb->dgram_buf[0];
+      sgl[w_i].addr = reinterpret_cast<uint64_t>(&cb->dgram_buf[0]);
 
       recv_wr[w_i].sg_list = &sgl[w_i];
       recv_wr[w_i].num_sge = 1;
-      recv_wr[w_i].next = (w_i == num_comps - 1) ? NULL : &recv_wr[w_i + 1];
+      recv_wr[w_i].next = w_i == static_cast<size_t>(num_comps) - 1
+                              ? nullptr
+                              : &recv_wr[w_i + 1];
     }
 
-    ret = ibv_post_recv(cb->dgram_qp[ud_qp_i], &recv_wr[0], &bad_recv_wr);
-    CPE(ret, "ibv_post_recv error", ret);
+    int ret = ibv_post_recv(cb->dgram_qp[qp_i], &recv_wr[0], &bad_recv_wr);
+    rt_assert(ret == 0, "ibv_post_recv() error");
 
-    rolling_iter += num_comps;
-    HRD_MOD_ADD(ud_qp_i, NUM_UD_QPS);
+    rolling_iter += static_cast<size_t>(num_comps);
+    mod_add_one<kAppNumQPs>(qp_i);
   }
-
-  return NULL;
 }
 
-void* run_client(void* arg) {
-  int ud_qp_i = 0;
-  struct thread_params params = *(struct thread_params*)arg;
-
+void run_client(thread_params_t* params) {
   // The local HID of a control block should be <= 64 to keep the SHM key low.
   // But the number of clients over all machines can be larger.
-  int clt_gid = params.id;  // Global ID of this client thread
-  int clt_local_hid = clt_gid % params.num_threads;
+  size_t clt_gid = params->id;  // Global ID of this client thread
+  size_t clt_local_hid = clt_gid % FLAGS_num_threads;
+  size_t srv_gid = clt_gid % FLAGS_num_threads;
+  size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : srv_gid % 2;
 
-  int srv_gid = clt_gid % NUM_SERVER_THREADS;
-  int ib_port_index = params.dual_port == 0 ? 0 : srv_gid % 2;
+  hrd_dgram_config_t dgram_config;
+  dgram_config.num_qps = 1;
+  dgram_config.prealloc_buf = nullptr;
+  dgram_config.buf_size = kAppBufSize;
+  dgram_config.buf_shm_key = -1;
 
-  struct hrd_ctrl_blk* cb = hrd_ctrl_blk_init(
-      clt_local_hid, ib_port_index, -1,  // port_index, numa_node_id
-      0, 0,                              // conn qps, use uc
-      NULL, 0, -1,       // prealloc conn buf, conn buf size, key
-      1, BUF_SIZE, -1);  // num_dgram_qps, dgram_buf_size, key
+  auto* cb = hrd_ctrl_blk_init(clt_local_hid, ib_port_index,
+                               kHrdInvalidNUMANode, nullptr, &dgram_config);
 
-  // Buffer to receive responses into
-  memset((void*)cb->dgram_buf, 0, BUF_SIZE);
+  // Buffer to send packets from
+  memset(const_cast<uint8_t*>(cb->dgram_buf), 0, kAppBufSize);
 
   // Buffer to send requests from
-  uint8_t* req_buf = malloc(params.size);
-  assert(req_buf != 0);
-  memset(req_buf, clt_gid, params.size);
+  uint8_t* req_buf = reinterpret_cast<uint8_t*>(malloc(FLAGS_size));
+  assert(req_buf != nullptr);
+  memset(req_buf, clt_gid, FLAGS_size);
 
-  printf("main: Client %d waiting for server %d\n", clt_gid, srv_gid);
+  printf("main: Client %zu waiting for server %zu\n", clt_gid, srv_gid);
 
-  struct hrd_qp_attr* srv_qp[NUM_UD_QPS] = {NULL};
-  for (ud_qp_i = 0; ud_qp_i < NUM_UD_QPS; ud_qp_i++) {
-    char srv_name[HRD_QP_NAME_SIZE];
-    sprintf(srv_name, "server-%d-%d", srv_gid, ud_qp_i);
-    while (srv_qp[ud_qp_i] == NULL) {
-      srv_qp[ud_qp_i] = hrd_get_published_qp(srv_name);
-      if (srv_qp[ud_qp_i] == NULL) {
-        usleep(200000);
-      }
+  hrd_qp_attr_t* srv_qp[kAppNumQPs] = {nullptr};
+  for (size_t qp_i = 0; qp_i < kAppNumQPs; qp_i++) {
+    char srv_name[kHrdQPNameSize];
+    sprintf(srv_name, "server-%zu-%zu", srv_gid, qp_i);
+    while (srv_qp[qp_i] == nullptr) {
+      srv_qp[qp_i] = hrd_get_published_qp(srv_name);
+      if (srv_qp[qp_i] == nullptr) usleep(200000);
     }
   }
-  ud_qp_i = 0;
 
-  printf("main: Client %d found server! Now posting SENDs.\n", clt_gid);
+  printf("main: Client %zu found server! Now posting SENDs.\n", clt_gid);
 
   // We need only 1 ah because a client contacts only 1 server
   struct ibv_ah_attr ah_attr = {
       .is_global = 0,
-      .dlid = srv_qp[0]->lid,  // All srv_qp have same LID
+      .dlid = srv_qp[1]->lid,
       .sl = 0,
       .src_path_bits = 0,
-      .port_num = cb->dev_port_id,
+      .port_num = cb->resolve.dev_port_id,
   };
 
   struct ibv_ah* ah = ibv_create_ah(cb->pd, &ah_attr);
-  assert(ah != NULL);
+  assert(ah != nullptr);
 
-  struct ibv_send_wr wr[MAX_POSTLIST], *bad_send_wr;
-  struct ibv_wc wc[MAX_POSTLIST];
-  struct ibv_sge sgl[MAX_POSTLIST];
-  long long rolling_iter = 0;  // For throughput measurement
-  long long nb_tx = 0;
-  int w_i = 0;  // Window index
-  int ret;
+  struct ibv_send_wr wr[kAppMaxPostlist], *bad_send_wr;
+  struct ibv_wc wc[kAppMaxPostlist];
+  struct ibv_sge sgl[kAppMaxPostlist];
+  size_t rolling_iter = 0;  // For throughput measurement
+  size_t nb_tx = 0;
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
+  size_t qp_i = 0;
   while (1) {
-    if (rolling_iter >= M_2) {
+    if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
-                       (double)(end.tv_nsec - start.tv_nsec) / 1000000000;
-      printf("main: Client %d: %.2f IOPS\n", clt_gid, rolling_iter / seconds);
+                       (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+      printf("main: Client %zu: %.2f IOPS\n", clt_gid, rolling_iter / seconds);
       rolling_iter = 0;
 
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    for (w_i = 0; w_i < params.postlist; w_i++) {
+    for (size_t w_i = 0; w_i < FLAGS_postlist; w_i++) {
       wr[w_i].wr.ud.ah = ah;
-      wr[w_i].wr.ud.remote_qpn = srv_qp[ud_qp_i]->qpn;
-      wr[w_i].wr.ud.remote_qkey = HRD_DEFAULT_QKEY;
+      wr[w_i].wr.ud.remote_qpn = srv_qp[qp_i]->qpn;
+      wr[w_i].wr.ud.remote_qkey = kHrdDefaultQKey;
 
       wr[w_i].opcode = IBV_WR_SEND_WITH_IMM;
       wr[w_i].num_sge = 1;
-      wr[w_i].next = (w_i == params.postlist - 1) ? NULL : &wr[w_i + 1];
+      wr[w_i].next = (w_i == FLAGS_postlist - 1) ? nullptr : &wr[w_i + 1];
       wr[w_i].imm_data = 3185;
       wr[w_i].sg_list = &sgl[w_i];
 
-      // UNSIG_BATCH >= 2 * postlist ensures that we poll for a
+      // kAppUnsigBatch >= 2 * postlist ensures that we poll for a
       // completed send() only after we have performed a signaled send().
-      wr[w_i].send_flags = (nb_tx & UNSIG_BATCH_) == 0 ? IBV_SEND_SIGNALED : 0;
-      if ((nb_tx & UNSIG_BATCH_) == UNSIG_BATCH_) {
+      wr[w_i].send_flags = nb_tx % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      if (nb_tx % kAppUnsigBatch == kAppUnsigBatch - 1) {
         hrd_poll_cq(cb->dgram_send_cq[0], 1, wc);
       }
 
       wr[w_i].send_flags |= IBV_SEND_INLINE;
 
-      sgl[w_i].addr = (uint64_t)(uintptr_t)req_buf;
-      sgl[w_i].length = params.size;
+      sgl[w_i].addr = reinterpret_cast<uint64_t>(req_buf);
+      sgl[w_i].length = FLAGS_size;
 
       rolling_iter++;
       nb_tx++;
     }
 
-    ret = ibv_post_send(cb->dgram_qp[0], &wr[0], &bad_send_wr);
-    CPE(ret, "ibv_post_send error", ret);
-
-    HRD_MOD_ADD(ud_qp_i, NUM_UD_QPS);
+    int ret = ibv_post_send(cb->dgram_qp[0], &wr[0], &bad_send_wr);
+    rt_assert(ret == 0, "ibv_post_send() error");
+    mod_add_one<kAppNumQPs>(qp_i);
   }
-
-  return NULL;
 }
 
 int main(int argc, char* argv[]) {
-  int i, c;
-  int num_threads = -1, dual_port = -1;
-  int is_client = -1, machine_id = -1, size = -1, postlist = -1;
-  struct thread_params* param_arr;
-  pthread_t* thread_arr;
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  double* tput = nullptr;  // Leaked
 
-  static struct option opts[] = {
-      {.name = "num-threads", .has_arg = 1, .val = 't'},
-      {.name = "dual-port", .has_arg = 1, .val = 'd'},
-      {.name = "is-client", .has_arg = 1, .val = 'c'},
-      {.name = "machine-id", .has_arg = 1, .val = 'm'},
-      {.name = "size", .has_arg = 1, .val = 's'},
-      {.name = "postlist", .has_arg = 1, .val = 'p'},
-      {0}};
+  rt_assert(FLAGS_num_threads >= 1, "Invalid num_threads");
+  rt_assert(FLAGS_dual_port <= 1, "Invalid dual_port");
+  rt_assert(FLAGS_is_client <= 1, "Invalid is_client");
+  rt_assert(FLAGS_size <= kHrdMaxInline, "Invalid SEND size");
 
-  // Parse and check arguments
-  while (1) {
-    c = getopt_long(argc, argv, "t:d:u:c:m:s:w:r", opts, NULL);
-    if (c == -1) {
-      break;
-    }
-    switch (c) {
-      case 't':
-        num_threads = atoi(optarg);
-        break;
-      case 'd':
-        dual_port = atoi(optarg);
-        break;
-      case 'c':
-        is_client = atoi(optarg);
-        break;
-      case 'm':
-        machine_id = atoi(optarg);
-        break;
-      case 's':
-        size = atoi(optarg);
-        break;
-      case 'p':
-        postlist = atoi(optarg);
-        break;
-      default:
-        printf("Invalid argument %d\n", c);
-        assert(false);
-    }
-  }
+  if (FLAGS_is_client == 1) {
+    rt_assert(FLAGS_machine_id != std::numeric_limits<size_t>::max(),
+              "Invalid machine_id");
+    rt_assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist,
+              "Invalid postlist");
 
-  assert(dual_port == 0 || dual_port == 1);
-  assert(is_client == 0 || is_client == 1);
-  assert(size >= 0 && size <= HRD_MAX_INLINE);
-  assert(postlist >= 1 && postlist <= MAX_POSTLIST);
-
-  if (is_client == 1) {
-    // Poll for completed send()s only after performing a signaled send().
-    // This check is not needed for server because server does not send().
-    assert(UNSIG_BATCH >= 2 * postlist);
-    assert(machine_id >= 0);
-    assert(num_threads >= 1);
+    rt_assert(FLAGS_postlist <= kAppUnsigBatch, "Postlist check failed");
+    static_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "Queue capacity check");
   } else {
-    // Don't post too many RECVs
-    assert(postlist <= HRD_Q_DEPTH / 2);
-    assert(machine_id == -1);
-    assert(num_threads == -1);
-    num_threads = NUM_SERVER_THREADS;
+    rt_assert(FLAGS_machine_id == std::numeric_limits<size_t>::max(), "");
+    rt_assert(FLAGS_postlist <= kHrdRQDepth / 2, "RECV pollbatch too large");
+
+    tput = new double[FLAGS_num_threads];
+    for (size_t i = 0; i < FLAGS_num_threads; i++) tput[i] = 0;
   }
 
   // Launch a single server thread or multiple client threads
-  printf("main: Using %d threads\n", num_threads);
-  param_arr = malloc(num_threads * sizeof(struct thread_params));
-  thread_arr = malloc(num_threads * sizeof(pthread_t));
-  double* tput = malloc(num_threads * sizeof(double));
+  printf("main: Using %zu threads\n", FLAGS_num_threads);
+  std::vector<thread_params_t> param_arr(FLAGS_num_threads);
+  std::vector<std::thread> thread_arr(FLAGS_num_threads);
 
-  for (i = 0; i < num_threads; i++) {
-    param_arr[i].dual_port = dual_port;
-    param_arr[i].size = size;
-    param_arr[i].postlist = postlist;
-
-    if (is_client) {
-      param_arr[i].id = (machine_id * num_threads) + i;
-      param_arr[i].num_threads = num_threads;
-      pthread_create(&thread_arr[i], NULL, run_client, &param_arr[i]);
+  for (size_t i = 0; i < FLAGS_num_threads; i++) {
+    if (FLAGS_is_client) {
+      param_arr[i].id = (FLAGS_machine_id * FLAGS_num_threads) + i;
+      thread_arr[i] = std::thread(run_client, &param_arr[i]);
     } else {
       param_arr[i].id = i;
       param_arr[i].tput = tput;
-      pthread_create(&thread_arr[i], NULL, run_server, &param_arr[i]);
+      thread_arr[i] = std::thread(run_server, &param_arr[i]);
     }
   }
 
-  for (i = 0; i < num_threads; i++) {
-    pthread_join(thread_arr[i], NULL);
-  }
-
+  for (auto& t : thread_arr) t.join();
   return 0;
 }
