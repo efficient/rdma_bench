@@ -23,7 +23,7 @@ sleep 1
 blue "Starting $num_server_threads server threads"
 
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --physcpubind=0-27 --membind=0 ./main \
+	numactl --physcpubind=0-8 --membind=0 ./main \
 	--dual-port 1 \
 	--is-client 0 \
 	--size 32 \
