@@ -266,8 +266,8 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
     assert(cb->dgram_send_cq[i] != nullptr);
 
     size_t recv_queue_depth = (i == 0) ? kHrdRQDepth : 1;
-    cb->dgram_recv_cq[i] = ibv_exp_create_cq(cb->resolve.ib_ctx, recv_queue_depth,
-                                         nullptr, nullptr, 0, &cq_attr);
+    cb->dgram_recv_cq[i] = ibv_exp_create_cq(
+        cb->resolve.ib_ctx, recv_queue_depth, nullptr, nullptr, 0, &cq_attr);
     assert(cb->dgram_recv_cq[i] != nullptr);
 
     // Create the QP
