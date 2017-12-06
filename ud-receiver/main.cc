@@ -54,12 +54,7 @@ void run_server(thread_params_t* params) {
 
   printf("main: Server %zu published QPs. Now polling.\n", srv_gid);
 
-  struct ibv_recv_wr recv_wr[kAppMaxPostlist], *bad_recv_wr;
-  struct ibv_wc wc[kAppMaxPostlist];
-  struct ibv_sge sgl[kAppMaxPostlist];
-  size_t rolling_iter = 0;  // For throughput measurement
-  size_t qp_i = 0;
-
+  size_t rolling_iter = 0, qp_i = 0;
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
 
@@ -83,19 +78,14 @@ void run_server(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    /*
-    int num_comps = 0;
-    if (cb->dgram_buf[40] != 0) {
-      num_comps++;
-      cb->dgram_buf[40] = 0;
-    }
-    */
-
+    struct ibv_wc wc[kAppMaxPostlist];
     int num_comps = ibv_poll_cq(cb->dgram_recv_cq[qp_i], FLAGS_postlist, wc);
-    rt_assert(num_comps >= 0, "poll_cq() for RECV CQ failed");
+    assert(num_comps >= 0);
     if (num_comps == 0) continue;
 
     // Post a batch of RECVs
+    struct ibv_recv_wr recv_wr[kAppMaxPostlist], *bad_recv_wr;
+    struct ibv_sge sgl[kAppMaxPostlist];
     for (size_t w_i = 0; w_i < static_cast<size_t>(num_comps); w_i++) {
       assert(wc[w_i].imm_data == 3185);
       sgl[w_i].length = FLAGS_size + 40;
