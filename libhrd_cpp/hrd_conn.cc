@@ -168,20 +168,14 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
     assert(cb->dgram_send_cq[i] != nullptr && cb->dgram_recv_cq[i] != nullptr);
     assert(cb->dgram_qp[i] != nullptr);
 
-    if (ibv_destroy_qp(cb->dgram_qp[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy dgram QP %zu\n", i);
-      return -1;
-    }
+    rt_assert(ibv_destroy_qp(cb->dgram_qp[i]) == 0,
+              "Failed to destroy dgram QP");
 
-    if (ibv_destroy_cq(cb->dgram_send_cq[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy dgram SEND CQ %zu\n", i);
-      return -1;
-    }
+    rt_assert(ibv_destroy_cq(cb->dgram_send_cq[i]) == 0,
+              "Failed to destroy dgram SEND CQ");
 
-    if (ibv_destroy_cq(cb->dgram_recv_cq[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy dgram RECV CQ %zu\n", i);
-      return -1;
-    }
+    rt_assert(ibv_destroy_cq(cb->dgram_recv_cq[i]) == 0,
+              "Failed to destroy dgram RECV CQ");
   }
 
   for (size_t i = 0; i < cb->num_conn_qps; i++) {
@@ -201,18 +195,13 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
   // Destroy memory regions
   if (cb->num_dgram_qps > 0) {
     assert(cb->dgram_buf_mr != nullptr && cb->dgram_buf != nullptr);
-    if (ibv_dereg_mr(cb->dgram_buf_mr)) {
-      fprintf(stderr, "HRD: Couldn't deregister dgram MR for cb %zu\n",
-              cb->local_hid);
-      return -1;
-    }
+    rt_assert(ibv_dereg_mr(cb->dgram_buf_mr) == 0,
+              "Failed to deregister dgram MR");
 
     if (cb->numa_node != kHrdInvalidNUMANode) {
-      if (hrd_free(cb->dgram_buf_shm_key,
-                   const_cast<uint8_t*>(cb->dgram_buf))) {
-        fprintf(stderr, "HRD: Error freeing dgram hugepages for cb %zu.\n",
-                cb->local_hid);
-      }
+      rt_assert(hrd_free(cb->dgram_buf_shm_key,
+                         const_cast<uint8_t*>(cb->dgram_buf)) == 0,
+                "Failed to free dgram hugepages");
     } else {
       free(const_cast<uint8_t*>(cb->dgram_buf));
     }
@@ -237,16 +226,11 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
   }
 
   // Destroy protection domain
-  if (ibv_dealloc_pd(cb->pd)) {
-    fprintf(stderr, "HRD: Couldn't dealloc PD for cb %zu\n", cb->local_hid);
-    return -1;
-  }
+  rt_assert(ibv_dealloc_pd(cb->pd) == 0, "Failed to dealloc PD");
 
   // Destroy device context
-  if (ibv_close_device(cb->resolve.ib_ctx)) {
-    fprintf(stderr, "Couldn't release context for cb %zu\n", cb->local_hid);
-    return -1;
-  }
+  rt_assert(ibv_close_device(cb->resolve.ib_ctx) == 0,
+            "Failed to close device");
 
   hrd_red_printf("HRD: Control block %d destroyed.\n", cb->local_hid);
   return 0;
@@ -258,17 +242,19 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
   assert(cb->num_dgram_qps >= 1 && cb->resolve.dev_port_id >= 1);
 
   for (size_t i = 0; i < cb->num_dgram_qps; i++) {
-    struct ibv_exp_cq_init_attr cq_attr;
-    memset(&cq_attr, 0, sizeof(cq_attr));
+    // Create completion queues
+    struct ibv_exp_cq_init_attr cq_init_attr;
+    memset(&cq_init_attr, 0, sizeof(cq_init_attr));
 
-    cb->dgram_send_cq[i] = ibv_exp_create_cq(cb->resolve.ib_ctx, kHrdSQDepth,
-                                             nullptr, nullptr, 0, &cq_attr);
-    assert(cb->dgram_send_cq[i] != nullptr);
+    cb->dgram_send_cq[i] = ibv_exp_create_cq(
+        cb->resolve.ib_ctx, kHrdSQDepth, nullptr, nullptr, 0, &cq_init_attr);
+    rt_assert(cb->dgram_send_cq[i] != nullptr, "Failed to create SEND CQ");
 
     size_t recv_queue_depth = (i == 0) ? kHrdRQDepth : 1;
-    cb->dgram_recv_cq[i] = ibv_exp_create_cq(
-        cb->resolve.ib_ctx, recv_queue_depth, nullptr, nullptr, 0, &cq_attr);
-    assert(cb->dgram_recv_cq[i] != nullptr);
+    cb->dgram_recv_cq[i] =
+        ibv_exp_create_cq(cb->resolve.ib_ctx, recv_queue_depth, nullptr,
+                          nullptr, 0, &cq_init_attr);
+    rt_assert(cb->dgram_recv_cq[i] != nullptr, "Failed to create RECV CQ");
 
     // Create the QP
     struct ibv_exp_qp_init_attr create_attr;
@@ -298,23 +284,20 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
     init_attr.pkey_index = 0;
     init_attr.port_num = cb->resolve.dev_port_id;
     init_attr.qkey = kHrdDefaultQKey;
+    uint64_t init_comp_mask =
+        IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_QKEY;
 
-    if (ibv_exp_modify_qp(
-            cb->dgram_qp[i], &init_attr,
-            IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT | IBV_QP_QKEY)) {
-      fprintf(stderr, "Failed to modify dgram QP to INIT\n");
-      return;
-    }
+    rt_assert(
+        ibv_exp_modify_qp(cb->dgram_qp[i], &init_attr, init_comp_mask) == 0,
+        "Failed to modify dgram QP to INIT");
 
     // RTR state
     struct ibv_exp_qp_attr rtr_attr;
     memset(&rtr_attr, 0, sizeof(rtr_attr));
     rtr_attr.qp_state = IBV_QPS_RTR;
 
-    if (ibv_exp_modify_qp(cb->dgram_qp[i], &rtr_attr, IBV_QP_STATE)) {
-      fprintf(stderr, "Failed to modify dgram QP to RTR\n");
-      exit(-1);
-    }
+    rt_assert(ibv_exp_modify_qp(cb->dgram_qp[i], &rtr_attr, IBV_QP_STATE) == 0,
+              "Failed to modify dgram QP to RTR");
 
     // RTS state
     struct ibv_exp_qp_attr rts_attr;
@@ -322,11 +305,9 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
     rts_attr.qp_state = IBV_QPS_RTS;
     rts_attr.sq_psn = kHrdDefaultPSN;
 
-    if (ibv_exp_modify_qp(cb->dgram_qp[i], &rts_attr,
-                          IBV_QP_STATE | IBV_QP_SQ_PSN)) {
-      fprintf(stderr, "Failed to modify dgram QP to RTS\n");
-      exit(-1);
-    }
+    rt_assert(ibv_exp_modify_qp(cb->dgram_qp[i], &rts_attr,
+                                IBV_QP_STATE | IBV_QP_SQ_PSN) == 0,
+              "Failed to modify dgram QP to RTS\n");
   }
 }
 
