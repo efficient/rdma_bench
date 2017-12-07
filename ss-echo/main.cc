@@ -17,7 +17,8 @@ struct thread_params_t {
 };
 
 DEFINE_uint64(machine_id, std::numeric_limits<size_t>::max(), "Machine ID");
-DEFINE_uint64(num_threads, 0, "Number of threads");
+DEFINE_uint64(num_client_threads, 0, "Number of client threads/machine");
+DEFINE_uint64(num_server_threads, 0, "Number of server threads");
 DEFINE_uint64(is_client, 0, "Is this process a client?");
 DEFINE_uint64(dual_port, 0, "Use two ports?");
 DEFINE_uint64(size, 0, "RDMA size");
@@ -27,8 +28,8 @@ void run_client(thread_params_t* params) {
   // The local HID of a control block should be <= 64 to keep the SHM key low.
   // But the number of clients over all machines can be larger.
   size_t clt_gid = params->id;  // Global ID of this client thread
-  size_t clt_local_hid = clt_gid % FLAGS_num_threads;
-  size_t srv_gid = clt_gid % FLAGS_num_threads;
+  size_t clt_local_hid = clt_gid % FLAGS_num_client_threads;
+  size_t srv_gid = clt_gid % FLAGS_num_server_threads;
   size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : srv_gid % 2;
 
   hrd_dgram_config_t dgram_config;
@@ -190,7 +191,9 @@ void run_server(thread_params_t* params) {
 
       if (srv_gid == 0) {
         double tot = 0;
-        for (size_t i = 0; i < FLAGS_num_threads; i++) tot += params->tput[i];
+        for (size_t i = 0; i < FLAGS_num_server_threads; i++) {
+          tot += params->tput[i];
+        }
         hrd_red_printf("main: Total = %.2f\n", tot);
       }
 
@@ -271,7 +274,6 @@ int main(int argc, char* argv[]) {
   double* tput = nullptr;  // Leaked
 
   // Basic flag checks
-  rt_assert(FLAGS_num_threads >= 1, "Invalid num_threads");
   rt_assert(FLAGS_dual_port <= 1, "Invalid dual_port");
   rt_assert(FLAGS_is_client <= 1, "Invalid is_client");
   rt_assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist,
@@ -286,23 +288,32 @@ int main(int argc, char* argv[]) {
   rt_assert(FLAGS_postlist <= kHrdRQDepth / 2, "RECV pollbatch too large");
 
   if (FLAGS_is_client == 1) {
+    rt_assert(FLAGS_num_client_threads >= 1, "Invalid num_client_threads");
+    // Clients need to know about number of server threads
+    rt_assert(FLAGS_num_server_threads >= 1, "Invalid num_server_threads");
     rt_assert(FLAGS_machine_id != std::numeric_limits<size_t>::max(),
               "Invalid machine_id");
   } else {
+    // Server does not need to know about number of client threads
+    rt_assert(FLAGS_num_client_threads == 0, "Invalid num_client_threads");
+    rt_assert(FLAGS_num_server_threads >= 1, "Invalid num_server_threads");
     rt_assert(FLAGS_machine_id == std::numeric_limits<size_t>::max(), "");
 
-    tput = new double[FLAGS_num_threads];
-    for (size_t i = 0; i < FLAGS_num_threads; i++) tput[i] = 0;
+    tput = new double[FLAGS_num_server_threads];
+    for (size_t i = 0; i < FLAGS_num_server_threads; i++) tput[i] = 0;
   }
 
-  // Launch a single server thread or multiple client threads
-  printf("main: Using %zu threads\n", FLAGS_num_threads);
-  std::vector<thread_params_t> param_arr(FLAGS_num_threads);
-  std::vector<std::thread> thread_arr(FLAGS_num_threads);
+  size_t _num_threads = (FLAGS_is_client == 1) ? FLAGS_num_client_threads
+                                               : FLAGS_num_server_threads;
 
-  for (size_t i = 0; i < FLAGS_num_threads; i++) {
+  // Launch a single server thread or multiple client threads
+  printf("main: Using %zu threads\n", _num_threads);
+  std::vector<thread_params_t> param_arr(_num_threads);
+  std::vector<std::thread> thread_arr(_num_threads);
+
+  for (size_t i = 0; i < _num_threads; i++) {
     if (FLAGS_is_client == 1) {
-      param_arr[i].id = (FLAGS_machine_id * FLAGS_num_threads) + i;
+      param_arr[i].id = (FLAGS_machine_id * _num_threads) + i;
       thread_arr[i] = std::thread(run_client, &param_arr[i]);
     } else {
       param_arr[i].id = i;
