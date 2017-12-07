@@ -5,17 +5,17 @@ export HRD_REGISTRY_IP="specialnode.RDMA.fawn.apt.emulab.net"
 
 drop_shm
 
-num_threads=1
+num_server_threads=1
 
 blue "Reset server QP registry"
 sudo killall memcached
 memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &
 sleep 1
 
-blue "Starting $num_threads server threads"
+blue "Starting $num_server_threads server threads"
 
 flags="
-	--num_threads $num_threads \
+	--num_server_threads $num_server_threads \
 	--dual_port 0 \
 	--is_client 0 \
 	--size 32 \

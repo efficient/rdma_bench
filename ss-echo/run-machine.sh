@@ -9,8 +9,10 @@ drop_shm
 executable="../build/ss-echo"
 chmod +x $executable
 
-num_threads=1			# Threads per client machine
-blue "Running $num_threads client threads"
+num_client_threads=1 # Threads per client machine
+num_server_threads=1 # Total server threads     
+
+blue "Running $num_client_threads client threads"
 
 # Check number of arguments
 if [ "$#" -gt 2 ]; then
@@ -26,7 +28,8 @@ if [ "$#" -eq 0 ]; then
 fi
 
 flags="\
-  --num_threads $num_threads \
+  --num_client_threads $num_client_threads \
+  --num_server_threads $num_server_threads \
 	--dual_port 0 \
   --postlist 16 \
 	--is_client 1 \
