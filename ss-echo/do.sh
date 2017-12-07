@@ -1,2 +1,1 @@
-make clean
-make
+make -j -C .. ss-echo

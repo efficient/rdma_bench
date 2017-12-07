@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
   std::vector<std::thread> thread_arr(FLAGS_num_threads);
 
   for (size_t i = 0; i < FLAGS_num_threads; i++) {
-    if (FLAGS_is_client) {
+    if (FLAGS_is_client == 1) {
       param_arr[i].id = (FLAGS_machine_id * FLAGS_num_threads) + i;
       thread_arr[i] = std::thread(run_client, &param_arr[i]);
     } else {

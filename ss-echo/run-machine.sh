@@ -1,34 +1,45 @@
-# A function to echo in blue color
-function blue() {
-	es=`tput setaf 4`
-	ee=`tput sgr0`
-	echo "${es}$1${ee}"
-}
+#!/usr/bin/env bash
+source $(dirname $0)/../scripts/utils.sh
+source $(dirname $0)/../scripts/mlx_env.sh
+export HRD_REGISTRY_IP="specialnode.RDMA.fawn.apt.emulab.net"
 
-if [ "$#" -ne 1 ]; then
-    blue "Illegal number of parameters"
-	blue "Usage: ./run-machine.sh <machine_number>"
+drop_shm
+
+# lsync messes up permissions
+executable="../build/ss-echo"
+chmod +x $executable
+
+num_threads=1			# Threads per client machine
+blue "Running $num_threads client threads"
+
+# Check number of arguments
+if [ "$#" -gt 2 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
 	exit
 fi
 
-export HRD_REGISTRY_IP="10.113.1.47"
-export MLX5_SINGLE_THREADED=1
+if [ "$#" -eq 0 ]; then
+  blue "Illegal number of arguments."
+  blue "Usage: ./run-machine.sh <machine_id>, or ./run-machine.sh <machine_id> gdb"
+	exit
+fi
 
-blue "Removing hugepages"
-shm-rm.sh 1>/dev/null 2>/dev/null
+flags="\
+  --num_threads $num_threads \
+	--dual_port 0 \
+  --postlist 16 \
+	--is_client 1 \
+  --size 32 \
+	--machine_id $1
+"
 
-num_threads=16			# Threads per client machine
-: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
+# Check for non-gdb mode
+if [ "$#" -eq 1 ]; then
+  sudo -E numactl --cpunodebind=0 --membind=0 $executable $flags
+fi
 
-blue "Running $num_threads client threads"
-
-sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --cpunodebind=0 --membind=0 ./main \
-	--num-threads $num_threads \
-	--dual-port 1 \
-	--is-client 1 \
-	--machine-id $1 \
-	--size 0 \
-	--postlist 16 \
-
-#debug: run --num-threads 1 --dual-port 1 --is-client 1 --machine-id 0 --size 32 --window 128
+# Check for gdb mode
+if [ "$#" -eq 2 ]; then
+  sudo -E gdb -ex run --args $executable $flags
+fi
