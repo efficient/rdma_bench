@@ -87,6 +87,7 @@ set(BENCHMARKS
   rw-tput-sender
   ud-sender
   ud-receiver
+  ss-echo
   atomics-sequencer
   sender-scalability)
 
