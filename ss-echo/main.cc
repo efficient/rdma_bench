@@ -249,7 +249,8 @@ void run_server(thread_params_t* params) {
       wr[w_i].send_flags =
           (nb_tx[qp_i] % kAppUnsigBatch == 0) ? IBV_SEND_SIGNALED : 0;
       if (nb_tx[qp_i] % kAppUnsigBatch == kAppUnsigBatch - 1) {
-        hrd_poll_cq(cb->dgram_send_cq[qp_i], 1, wc);
+        struct ibv_wc signal_wc;
+        hrd_poll_cq(cb->dgram_send_cq[qp_i], 1, &signal_wc);
       }
 
       wr[w_i].send_flags |= IBV_SEND_INLINE;
