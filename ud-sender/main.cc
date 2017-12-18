@@ -87,14 +87,14 @@ void run_server(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-      double my_tput = rolling_iter / seconds;
-      printf("main: Server %zu: %.2f IOPS. \n", srv_gid, my_tput);
+      double my_tput = rolling_iter / (seconds * 1000000);
+      printf("main: Server %zu: %.2f M/s. \n", srv_gid, my_tput);
       params->tput[srv_gid] = my_tput;
 
       if (srv_gid == 0) {
         double tot = 0;
         for (size_t i = 0; i < FLAGS_num_threads; i++) tot += params->tput[i];
-        hrd_red_printf("main: Total tput = %.2f IOPS.\n", tot);
+        hrd_red_printf("main: Total tput = %.2f M/s.\n", tot);
       }
 
       rolling_iter = 0;
