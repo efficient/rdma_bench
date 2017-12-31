@@ -21,7 +21,7 @@ DEFINE_uint64(postlist, 0, "Postlist size");
 
 struct thread_params_t {
   size_t id;
-  double* tput_arr;
+  double* tput;
 };
 
 void run_server(thread_params_t* params) {
@@ -129,19 +129,16 @@ void run_client(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-      double tput = rolling_iter / seconds;
-      printf("main: Client %zu: %.2f IOPS\n", clt_gid, tput);
+      double tput_mrps = rolling_iter / (seconds * 1000000);
+      printf("main: Client %zu: %.2f M/s\n", clt_gid, tput_mrps);
       rolling_iter = 0;
 
       // Per-machine stats
-      params->tput_arr[clt_lid] = tput;
+      params->tput[clt_lid] = tput_mrps;
       if (clt_lid == 0) {
-        double machine_tput = 0;
-        for (size_t i = 0; i < FLAGS_num_threads; i++) {
-          machine_tput += params->tput_arr[i];
-        }
-
-        hrd_red_printf("main: Machine: %.2f IOPS\n", machine_tput);
+        double tot = 0;
+        for (size_t i = 0; i < FLAGS_num_threads; i++) tot += params->tput[i];
+        hrd_red_printf("main: Machine: %.2f M/s\n", tot);
       }
 
       clock_gettime(CLOCK_REALTIME, &start);
@@ -197,12 +194,12 @@ int main(int argc, char* argv[]) {
   printf("main: Using %zu threads\n", FLAGS_num_threads);
   auto* param_arr = new thread_params_t[FLAGS_num_threads];
   std::vector<std::thread> thread_arr(FLAGS_num_threads);
-  auto* tput_arr = new double[FLAGS_num_threads];
+  auto* tput = new double[FLAGS_num_threads];
 
   for (size_t i = 0; i < FLAGS_num_threads; i++) {
     if (FLAGS_is_client == 1) {
       param_arr[i].id = (FLAGS_machine_id * FLAGS_num_threads) + i;
-      param_arr[i].tput_arr = tput_arr;
+      param_arr[i].tput = tput;
 
       thread_arr[i] = std::thread(run_client, &param_arr[i]);
     } else {

@@ -560,6 +560,6 @@ hrd_qp_attr_t* hrd_get_published_qp(const char* qp_name) {
 
   // The registry lookup returns only if we get a unique QP for @qp_name, or
   // if the memcached lookup succeeds but we don't have an entry for @qp_name.
-  rt_assert(ret_len == sizeof(hrd_qp_attr_t) || ret_len == -1, "");
+  rt_assert(ret_len == static_cast<int>(sizeof(*ret)) || ret_len == -1, "");
   return ret;
 }
