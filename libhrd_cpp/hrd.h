@@ -20,15 +20,16 @@
 #include <stdexcept>
 #include <string>
 
+static constexpr size_t kRoCE = true;  ///< Use RoCE
 static constexpr size_t kHrdMaxInline = 60;
-static constexpr size_t kHrdSQDepth = 128;   // Depth of all SEND queues
-static constexpr size_t kHrdRQDepth = 2048;  // Depth of all RECV queues
+static constexpr size_t kHrdSQDepth = 128;   ///< Depth of all SEND queues
+static constexpr size_t kHrdRQDepth = 2048;  ///< Depth of all RECV queues
 
 static constexpr uint32_t kHrdInvalidNUMANode = 9;
 static constexpr uint32_t kHrdDefaultPSN = 3185;
 static constexpr uint32_t kHrdDefaultQKey = 0x11111111;
 static constexpr size_t kHrdMaxLID = 256;
-static constexpr size_t kHrdMaxUDQPs = 256;  // Maximum number of UD QPs
+static constexpr size_t kHrdMaxUDQPs = 256;  ///< Maximum number of UD QPs
 
 static constexpr size_t kHrdQPNameSize = 200;
 
@@ -94,6 +95,8 @@ struct hrd_ctrl_blk_t {
     struct ibv_context* ib_ctx;  ///< The verbs device context
     uint8_t dev_port_id;         ///< 1-based port ID in device. 0 is invalid.
     uint16_t port_lid;           ///< LID of phy_port. 0 is invalid.
+
+    union ibv_gid gid;  ///< GID, used only for RoCE
   } resolve;
 
   struct ibv_pd* pd;  // A protection domain for this control block

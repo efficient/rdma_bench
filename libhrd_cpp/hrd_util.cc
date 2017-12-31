@@ -1,8 +1,21 @@
-#include <stdexcept>
+#include <sstream>
 #include "hrd.h"
 
 // Every thread creates a TCP connection to the registry only once.
 __thread memcached_st* memc = nullptr;
+
+static std::string link_layer_str(uint8_t link_layer) {
+  switch (link_layer) {
+    case IBV_LINK_LAYER_UNSPECIFIED:
+      return "[Unspecified]";
+    case IBV_LINK_LAYER_INFINIBAND:
+      return "[InfiniBand]";
+    case IBV_LINK_LAYER_ETHERNET:
+      return "[Ethernet]";
+    default:
+      return "[Invalid]";
+  }
+}
 
 // Print information about all IB devices in the system
 void hrd_ibv_devinfo(void) {
@@ -49,33 +62,38 @@ void hrd_ibv_devinfo(void) {
 // Finds the port with rank `port_index` (0-based) in the list of ENABLED ports.
 // Fills its device id and device-local port id (1-based) into the supplied
 // control block.
-void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
-  struct ibv_device** dev_list;
+void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t phy_port) {
+  std::ostringstream xmsg;  // The exception message
+  auto& resolve = cb->resolve;
+
+  // Get the device list
   int num_devices = 0;
+  struct ibv_device** dev_list = ibv_get_device_list(&num_devices);
+  rt_assert(dev_list != nullptr,
+            "eRPC IBTransport: Failed to get InfiniBand device list");
 
-  dev_list = ibv_get_device_list(&num_devices);
-  assert(dev_list != nullptr);
-
-  int ports_to_discover = port_index;
+  // Traverse the device list
+  int ports_to_discover = phy_port;
 
   for (int dev_i = 0; dev_i < num_devices; dev_i++) {
-    struct ibv_context* ctx = ibv_open_device(dev_list[dev_i]);
-    assert(ctx != nullptr);
+    struct ibv_context* ib_ctx = ibv_open_device(dev_list[dev_i]);
+    rt_assert(ib_ctx != nullptr, "Failed to open dev " + std::to_string(dev_i));
 
     struct ibv_device_attr device_attr;
     memset(&device_attr, 0, sizeof(device_attr));
-    if (ibv_query_device(ctx, &device_attr)) {
-      printf("HRD: Could not query device: %d\n", dev_i);
-      exit(-1);
+    if (ibv_query_device(ib_ctx, &device_attr) != 0) {
+      xmsg << "eRPC IBTransport: Failed to query InfiniBand device "
+           << std::to_string(dev_i);
+      throw std::runtime_error(xmsg.str());
     }
 
-    uint8_t port_i;
-    for (port_i = 1; port_i <= device_attr.phys_port_cnt; port_i++) {
+    for (uint8_t port_i = 1; port_i <= device_attr.phys_port_cnt; port_i++) {
       // Count this port only if it is enabled
       struct ibv_port_attr port_attr;
-      if (ibv_query_port(ctx, port_i, &port_attr) != 0) {
-        printf("HRD: Could not query port %d of device %d\n", port_i, dev_i);
-        exit(-1);
+      if (ibv_query_port(ib_ctx, port_i, &port_attr) != 0) {
+        xmsg << "Failed to query port " << std::to_string(port_i)
+             << " on device " << ib_ctx->device->name;
+        throw std::runtime_error(xmsg.str());
       }
 
       if (port_attr.phys_state != IBV_PORT_ACTIVE &&
@@ -84,29 +102,51 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t port_index) {
       }
 
       if (ports_to_discover == 0) {
-        printf("HRD: port index %zu resolved to device %d, port %d. Name %s.\n",
-               port_index, dev_i, port_i, dev_list[dev_i]->name);
+        // Resolution succeeded. Check if the link layer matches.
+        if (!kRoCE && port_attr.link_layer != IBV_LINK_LAYER_INFINIBAND) {
+          throw std::runtime_error(
+              "Transport type required is InfiniBand but port link layer is " +
+              link_layer_str(port_attr.link_layer));
+        }
 
-        // Fill the device ID and device-local port ID
-        cb->resolve.device_id = dev_i;
-        cb->resolve.dev_port_id = port_i;
-        cb->resolve.ib_ctx = ctx;
-        cb->resolve.port_lid = port_attr.lid;
+        if (kRoCE && port_attr.link_layer != IBV_LINK_LAYER_ETHERNET) {
+          throw std::runtime_error(
+              "Transport type required is RoCE but port link layer is " +
+              link_layer_str(port_attr.link_layer));
+        }
+
+        printf("HRD: port index %zu resolved to device %d, port %d. Name %s.\n",
+               phy_port, dev_i, port_i, dev_list[dev_i]->name);
+
+        resolve.device_id = dev_i;
+        resolve.ib_ctx = ib_ctx;
+        resolve.dev_port_id = port_i;
+        resolve.port_lid = port_attr.lid;
+
+        // Resolve and cache the ibv_gid struct for RoCE
+        if (kRoCE) {
+          int ret = ibv_query_gid(ib_ctx, resolve.dev_port_id, 0, &resolve.gid);
+          rt_assert(ret == 0, "Failed to query GID");
+        }
+
         return;
       }
 
       ports_to_discover--;
     }
 
-    if (ibv_close_device(ctx)) {
-      fprintf(stderr, "HRD: Couldn't release context\n");
-      exit(-1);
+    // Thank you Mario, but our port is in another device
+    if (ibv_close_device(ib_ctx) != 0) {
+      xmsg << "eRPC Failed to close device" << ib_ctx->device->name;
+      throw std::runtime_error(xmsg.str());
     }
   }
 
-  // If we come here, port resolution failed
-  throw std::runtime_error("Failed to resolve IB port index " +
-                           std::to_string(port_index));
+  // If we are here, port resolution has failed
+  assert(resolve.ib_ctx == nullptr);
+  xmsg << "eRPC IBTransport: Failed to resolve InfiniBand port index "
+       << std::to_string(phy_port);
+  throw std::runtime_error(xmsg.str());
 }
 
 // Allocate SHM with @shm_key, and save the shmid into @shm_id_ret
