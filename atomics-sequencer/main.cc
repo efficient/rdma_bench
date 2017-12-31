@@ -260,10 +260,11 @@ void* run_client(thread_params_t* params) {
     }
 
     ret = ibv_post_send(cb->conn_qp[qp_i], &wr[0], &bad_send_wr);
-    rt_assert(ret == 0, "ibv_post_send error");
+    rt_assert(ret == 0);
 
-    mod_add_one<kAppQPsPerClient>(qp_i);
     rolling_iter += FLAGS_postlist;
+    qp_i++;
+    if (qp_i == kAppQPsPerClient) qp_i = 0;
   }
 
   return nullptr;

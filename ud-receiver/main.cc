@@ -100,10 +100,11 @@ void run_server(thread_params_t* params) {
     }
 
     int ret = ibv_post_recv(cb->dgram_qp[qp_i], &recv_wr[0], &bad_recv_wr);
-    rt_assert(ret == 0, "ibv_post_recv() error " + std::to_string(ret));
+    rt_assert(ret == 0);
 
     rolling_iter += static_cast<size_t>(num_comps);
-    mod_add_one<kAppNumQPs>(qp_i);
+    qp_i++;
+    if (qp_i == kAppNumQPs) qp_i = 0;
   }
 }
 
@@ -202,8 +203,10 @@ void run_client(thread_params_t* params) {
     }
 
     int ret = ibv_post_send(cb->dgram_qp[0], &wr[0], &bad_send_wr);
-    rt_assert(ret == 0, "ibv_post_send() error");
-    mod_add_one<kAppNumQPs>(qp_i);
+    rt_assert(ret == 0);
+
+    qp_i++;
+    if (qp_i == kAppNumQPs) qp_i = 0;
   }
 }
 

@@ -37,12 +37,6 @@ static constexpr size_t kHrdQPNameSize = 200;
 #define kHrdMlx5Atomics false
 #define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
 
-/// Optimized (x + 1) % N
-template <size_t N>
-static constexpr size_t mod_add_one(size_t x) {
-  return (x + 1) == N ? 0 : x + 1;
-}
-
 #define KB(x) (static_cast<size_t>(x) << 10)
 #define KB_(x) (KB(x) - 1)
 #define MB(x) (static_cast<size_t>(x) << 20)

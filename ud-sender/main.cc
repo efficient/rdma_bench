@@ -129,9 +129,10 @@ void run_server(thread_params_t* params) {
     }
 
     int ret = ibv_post_send(cb->dgram_qp[qp_i], &wr[0], &bad_send_wr);
-    rt_assert(ret == 0, "ibv_post_send error");
+    rt_assert(ret == 0);
 
-    mod_add_one<kAppNumQPs>(qp_i);
+    qp_i++;
+    if (qp_i == kAppNumQPs) qp_i = 0;
   }
 }
 

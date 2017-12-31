@@ -155,7 +155,8 @@ void run_server(thread_params_t* params) {
     rt_assert(ret == 0, "ibv_post_send error");
 
     rolling_iter += FLAGS_postlist;
-    mod_add_one<kAppNumQPs>(qp_i);  // Use a different QP for next postlist
+    qp_i++;
+    if (qp_i == kAppNumQPs) qp_i = 0;
   }
 }
 
