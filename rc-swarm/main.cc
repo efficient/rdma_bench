@@ -182,7 +182,7 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
     //	tl_params.wrkr_gid, nb_tx_tot, qpn);
 
     int ret = ibv_post_send(tl_cb->conn_qp[qpn], &wr, &bad_send_wr);
-    rt_assert(ret == 0, "ibv_post_send error");
+    rt_assert(ret == 0);
 
     rolling_iter++;
     nb_tx_tot++;

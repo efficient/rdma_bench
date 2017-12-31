@@ -118,7 +118,7 @@ void run_client(thread_params_t* params) {
     }
 
     int ret = ibv_post_send(cb->dgram_qp[0], &wr[0], &bad_send_wr);
-    rt_assert(ret == 0, "ibv_post_send() error");
+    rt_assert(ret == 0);
 
     hrd_poll_cq(cb->dgram_send_cq[0], 1, wc);  // Poll SEND (w_i = 0)
 
@@ -220,7 +220,7 @@ void run_server(thread_params_t* params) {
     }
 
     ret = ibv_post_recv(cb->dgram_qp[0], &recv_wr[0], &bad_recv_wr);
-    rt_assert(ret == 0, "ibv_post_recv() error");
+    rt_assert(ret == 0);
 
     for (size_t w_i = 0; w_i < num_comps; w_i++) {
       int s_lid = wc[w_i].slid;  // Src LID for this request

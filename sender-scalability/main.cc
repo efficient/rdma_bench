@@ -175,7 +175,7 @@ void run_server(thread_params_t* params) {
     nb_tx[cn]++;
 
     int ret = ibv_post_send(cb->conn_qp[cn], &wr, &bad_send_wr);
-    rt_assert(ret == 0, "ibv_post_send error");
+    rt_assert(ret == 0);
     rolling_iter++;
   }
 }

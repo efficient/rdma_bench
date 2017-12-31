@@ -152,7 +152,7 @@ void run_server(thread_params_t* params) {
     }
 
     int ret = ibv_post_send(cb->conn_qp[qp_i], &wr[0], &bad_send_wr);
-    rt_assert(ret == 0, "ibv_post_send error");
+    rt_assert(ret == 0);
 
     rolling_iter += FLAGS_postlist;
     qp_i++;
