@@ -53,7 +53,6 @@ struct thread_params_t {
 
 // Flags
 DEFINE_uint64(numa_node, 0, "NUMA node");
-DEFINE_uint64(use_uc, 0, "Use UC?");
 DEFINE_uint64(base_port_index, 0, "Base port index");
 DEFINE_uint64(num_ports, 0, "Number of ports");
 DEFINE_uint64(machine_id, 0, "ID of this machine");

@@ -38,7 +38,6 @@ sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
 	--machine-id $1 \
 	--base-port-index 0 \
 	--num-ports 2 \
-	--use-uc 0 \
 	--do-read 1 1>tput-out/err-machine-$1 2>tput-out/err-machine-$1 &
 
 # Benchmark duration

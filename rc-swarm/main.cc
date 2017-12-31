@@ -202,8 +202,6 @@ void run_worker(thread_params_t* params) {
   signal(SIGTERM, ctrl_c_handler);
 
   tl_params = *params;
-  printf("Worker %zu: use_uc = %zu\n", tl_params.wrkr_gid, FLAGS_use_uc);
-
   size_t vport_index = tl_params.wrkr_lid % FLAGS_num_ports;
   size_t ib_port_index = FLAGS_base_port_index + vport_index * 2;
 
@@ -221,7 +219,7 @@ void run_worker(thread_params_t* params) {
       kAppWorkerBaseSHMKey + (tl_params.wrkr_gid % kAppNumThreads);
   hrd_conn_config_t conn_config;
   conn_config.num_qps = kAppNumQPsPerThread;
-  conn_config.use_uc = (FLAGS_use_uc == 1);
+  conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
   conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = wrkr_shm_key;

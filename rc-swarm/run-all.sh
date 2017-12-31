@@ -29,7 +29,7 @@ for i in $node_list; do
 	fi
 done
 
-blue "run-all:    Check success."
+blue "run-all: Check success."
 
 # Kill old rc-swarm and start new ones at all servers
 server_id=0

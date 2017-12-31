@@ -25,7 +25,6 @@ flags="
   --machine_id $1 \
   --base_port_index 0 \
   --num_ports 2 \
-  --use_uc 0 \
   --do_read 1
 "
 
