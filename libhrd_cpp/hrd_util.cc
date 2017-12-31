@@ -112,7 +112,8 @@ void hrd_resolve_port_index(struct hrd_ctrl_blk_t* cb, size_t phy_port) {
         if (kRoCE && port_attr.link_layer != IBV_LINK_LAYER_ETHERNET) {
           throw std::runtime_error(
               "Transport type required is RoCE but port link layer is " +
-              link_layer_str(port_attr.link_layer));
+              link_layer_str(port_attr.link_layer) +
+              ". Try setting kRoCE to false.");
         }
 
         printf("HRD: port index %zu resolved to device %d, port %d. Name %s.\n",

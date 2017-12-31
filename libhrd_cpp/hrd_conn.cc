@@ -8,6 +8,8 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
                                          hrd_conn_config_t* conn_config,
                                          hrd_dgram_config_t* dgram_config) {
   if (kHrdMlx5Atomics) {
+    rt_assert(!kRoCE, "mlx5 atomics not supported with RoCE");
+
     hrd_red_printf(
         "HRD: Connect-IB atomics enabled. This QP setup has not "
         "been tested for non-atomics performance.\n");
@@ -16,6 +18,10 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
 
   hrd_red_printf("HRD: creating control block %zu: port %zu, socket %zu.\n",
                  local_hid, port_index, numa_node);
+
+  if (kRoCE) {
+    rt_assert(dgram_config == nullptr, "Datagram QPs not supported with RoCE");
+  }
 
   if (conn_config != nullptr) {
     hrd_red_printf(
@@ -165,9 +171,6 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
 
   // Destroy QPs and CQs. QPs must be destroyed before CQs.
   for (size_t i = 0; i < cb->num_dgram_qps; i++) {
-    assert(cb->dgram_send_cq[i] != nullptr && cb->dgram_recv_cq[i] != nullptr);
-    assert(cb->dgram_qp[i] != nullptr);
-
     rt_assert(ibv_destroy_qp(cb->dgram_qp[i]) == 0,
               "Failed to destroy dgram QP");
 
@@ -179,17 +182,11 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
   }
 
   for (size_t i = 0; i < cb->num_conn_qps; i++) {
-    assert(cb->conn_cq[i] != nullptr && cb->conn_qp[i] != nullptr);
+    rt_assert(ibv_destroy_qp(cb->conn_qp[i]) == 0,
+              "Failed to destroy dgram QP");
 
-    if (ibv_destroy_qp(cb->conn_qp[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy conn QP %zud\n", i);
-      return -1;
-    }
-
-    if (ibv_destroy_cq(cb->conn_cq[i])) {
-      fprintf(stderr, "HRD: Couldn't destroy conn CQ %zud\n", i);
-      return -1;
-    }
+    rt_assert(ibv_destroy_cq(cb->conn_cq[i]) == 0,
+              "Failed to destroy connected CQ");
   }
 
   // Destroy memory regions
@@ -275,7 +272,7 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
 
     create_attr.qp_type = IBV_QPT_UD;
     cb->dgram_qp[i] = ibv_exp_create_qp(cb->resolve.ib_ctx, &create_attr);
-    assert(cb->dgram_qp[i] != nullptr);
+    rt_assert(cb->dgram_qp[i] != nullptr, "Failed to create dgram QP");
 
     // INIT state
     struct ibv_exp_qp_attr init_attr;
@@ -313,14 +310,13 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
 
 // Create connected QPs and transition them to INIT
 void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
-  assert(cb->conn_qp != nullptr && cb->conn_cq != nullptr &&
-         cb->pd != nullptr && cb->resolve.ib_ctx != nullptr);
+  assert(cb->pd != nullptr && cb->resolve.ib_ctx != nullptr);
   assert(cb->num_conn_qps >= 1 && cb->resolve.dev_port_id >= 1);
 
   for (size_t i = 0; i < cb->num_conn_qps; i++) {
     cb->conn_cq[i] =
         ibv_create_cq(cb->resolve.ib_ctx, kHrdSQDepth, nullptr, nullptr, 0);
-    assert(cb->conn_cq[i] != nullptr);
+    rt_assert(cb->conn_cq[i] != nullptr, "Failed to create conn CQ");
 
 #if (kHrdMlx5Atomics == false)
     struct ibv_qp_init_attr create_attr;
@@ -336,7 +332,7 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
     create_attr.cap.max_inline_data = kHrdMaxInline;
 
     cb->conn_qp[i] = ibv_create_qp(cb->pd, &create_attr);
-    assert(cb->conn_qp[i] != nullptr);
+    rt_assert(cb->conn_qp[i] != nullptr, "Failed to create conn QP");
 
     struct ibv_qp_attr init_attr;
     memset(&init_attr, 0, sizeof(struct ibv_qp_attr));
@@ -401,7 +397,6 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
 // Connects @cb's queue pair index @n to remote QP @remote_qp_attr
 void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
                     hrd_qp_attr_t* remote_qp_attr) {
-  assert(cb != nullptr && remote_qp_attr != nullptr);
   assert(n < cb->num_conn_qps);
   assert(cb->conn_qp[n] != nullptr);
   assert(cb->resolve.dev_port_id >= 1);
@@ -414,11 +409,20 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
   conn_attr.dest_qp_num = remote_qp_attr->qpn;
   conn_attr.rq_psn = kHrdDefaultPSN;
 
-  conn_attr.ah_attr.is_global = 0;
-  conn_attr.ah_attr.dlid = remote_qp_attr->lid;
+  conn_attr.ah_attr.is_global = kRoCE ? 1 : 0;
+  conn_attr.ah_attr.dlid = kRoCE ? 0 : remote_qp_attr->lid;
   conn_attr.ah_attr.sl = 0;
   conn_attr.ah_attr.src_path_bits = 0;
   conn_attr.ah_attr.port_num = cb->resolve.dev_port_id;  // Local port!
+
+  if (kRoCE) {
+    auto& grh = conn_attr.ah_attr.grh;
+    grh.dgid.global.interface_id = remote_qp_attr->gid.global.interface_id;
+    grh.dgid.global.subnet_prefix = remote_qp_attr->gid.global.subnet_prefix;
+
+    grh.sgid_index = 0;
+    grh.hop_limit = 1;
+  }
 
   int rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
                   IBV_QP_RQ_PSN;
@@ -430,7 +434,7 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
   }
 
   if (ibv_modify_qp(cb->conn_qp[n], &conn_attr, rtr_flags)) {
-    fprintf(stderr, "HRD: Failed to modify QP to RTR\n");
+    fprintf(stderr, "Failed to modify QP to RTR\n");
     assert(false);
   }
 

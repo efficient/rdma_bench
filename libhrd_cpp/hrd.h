@@ -57,6 +57,11 @@ static inline void rt_assert(bool condition, std::string throw_str) {
   if (unlikely(!condition)) throw std::runtime_error(throw_str);
 }
 
+/// Check a condition at runtime. If the condition is false, throw exception.
+static inline void rt_assert(bool condition) {
+  if (unlikely(!condition)) throw std::runtime_error("");
+}
+
 template <typename T>
 static constexpr inline bool is_power_of_two(T x) {
   return x && ((x & T(x - 1)) == 0);
@@ -69,17 +74,17 @@ static constexpr inline T round_up(T x) {
   return ((x) + T(power_of_two_number - 1)) & (~T(power_of_two_number - 1));
 }
 
-// Registry info about a QP
+///< Registry info about a QP
 struct hrd_qp_attr_t {
   char name[kHrdQPNameSize];
+  uint16_t lid;
+  uint32_t qpn;
+  union ibv_gid gid;  ///< GID, used for only RoCE
 
   // Info about the RDMA buffer associated with this QP
   uintptr_t buf_addr;
   uint32_t buf_size;
   uint32_t rkey;
-
-  uint16_t lid;
-  uint32_t qpn;
 };
 
 struct hrd_ctrl_blk_t {
