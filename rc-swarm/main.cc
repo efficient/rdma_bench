@@ -6,6 +6,7 @@
 __thread FILE* tl_out_fp = nullptr;  // File to record throughput
 __thread hrd_ctrl_blk_t* tl_cb;
 __thread thread_params_t tl_params;
+volatile sig_atomic_t ctrl_c_pressed = 0;
 
 // Is the remote QP for a local QP on the same physical machine?
 inline bool is_remote_qp_on_same_physical_mc(size_t qp_i) {
@@ -46,19 +47,34 @@ static inline size_t choose_qp(uint64_t* seed) {
   return qp_i;
 }
 
-void kill_handler(int) {
-  printf("Destroying control block for worker %zu\n", tl_params.wrkr_gid);
-  hrd_ctrl_blk_destroy(tl_cb);
+void ctrl_c_handler(int) { ctrl_c_pressed = 1; }
+
+inline void check_ctrl_c_pressed() {
+  if (unlikely(ctrl_c_pressed == 1)) {
+    printf("main: Worker %zu destroying cb.\n", tl_params.wrkr_gid);
+    hrd_ctrl_blk_destroy(tl_cb);
+    printf("main: Worker %zu waiting a sec before exiting.\n",
+           tl_params.wrkr_gid);
+    sleep(1);  // Wait for other threads before killing process
+    exit(0);
+  }
 }
 
-void app_poll_cq(const size_t qpn) {
+/// Poll one completion from \p qpn. Blocking.
+int app_poll_cq(const size_t qpn) {
   struct ibv_wc wc;
-  int ret = hrd_poll_cq_ret(tl_cb->conn_cq[qpn], 1, &wc);
+  int comps = 0;
+  while (true) {
+    check_ctrl_c_pressed();
+    comps = ibv_poll_cq(tl_cb->conn_cq[qpn], 1, &wc);
 
-  if (ret != 0) {
-    printf("Worker %zu destroying cb and exiting\n", tl_params.wrkr_gid);
-    hrd_ctrl_blk_destroy(tl_cb);
-    exit(-1);
+    if (comps == 1) return 0;
+
+    if (unlikely(comps < 0)) {
+      printf("main: Worker %zu poll_cq failed. Exiting.\n", tl_params.wrkr_gid);
+      hrd_ctrl_blk_destroy(tl_cb);
+      exit(-1);
+    }
   }
 }
 
@@ -82,6 +98,8 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
   size_t qpn = 0;  // Queue pair number to read or write from
   size_t rec_qpn_arr[kAppWindowSize] = {0};  // Record which QP we used
   while (true) {
+    check_ctrl_c_pressed();
+
     if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
@@ -117,12 +135,12 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
       if (FLAGS_do_read == 1) {
         // Sanity check: If allsig is set, we polled for READ completion above
         if (kAppAllsig) {
-          rt_assert(tl_cb->conn_buf[window_i * kAppRDMASize] != 0,
-                    "Read completed but buffer still 0");
+          rt_assert(tl_cb->conn_buf[window_i * kAppRDMASize] != 0);
         }
 
         while (tl_cb->conn_buf[window_i * kAppRDMASize] == 0) {
           // If allsig is not set, we poll here
+          check_ctrl_c_pressed();
         }
         tl_cb->conn_buf[window_i * kAppRDMASize] = 0;
       }
@@ -179,9 +197,9 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
 }
 
 void run_worker(thread_params_t* params) {
-  signal(SIGINT, kill_handler);
-  signal(SIGKILL, kill_handler);
-  signal(SIGTERM, kill_handler);
+  signal(SIGINT, ctrl_c_handler);
+  signal(SIGKILL, ctrl_c_handler);
+  signal(SIGTERM, ctrl_c_handler);
 
   tl_params = *params;
   printf("Worker %zu: use_uc = %zu\n", tl_params.wrkr_gid, FLAGS_use_uc);
