@@ -7,7 +7,7 @@ drop_shm
 exe="../build/rw-tput-receiver"
 chmod +x $exe
 
-num_server_threads=1
+num_server_threads=4
 
 blue "Reset server QP registry"
 sudo killall memcached
@@ -18,7 +18,7 @@ blue "Starting $num_server_threads server threads"
 
 flags="
 	--num_threads $num_server_threads \
-	--dual_port 0 \
+	--dual_port 1 \
   --use_uc 0 \
   --is_client 0
 "

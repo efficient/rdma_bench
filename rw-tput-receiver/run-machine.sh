@@ -7,7 +7,7 @@ drop_shm
 exe="../build/rw-tput-receiver"
 chmod +x $exe
 
-num_threads=1			# Threads per client machine
+num_threads=4			# Threads per client machine
 blue "Running $num_threads client threads"
 
 # Check number of arguments
@@ -25,7 +25,7 @@ fi
 
 flags="\
   --num_threads $num_threads \
-	--dual_port 0 \
+	--dual_port 1 \
 	--use_uc 0 \
 	--is_client 1 \
 	--machine_id $1 \

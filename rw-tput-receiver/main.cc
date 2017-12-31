@@ -80,8 +80,8 @@ void run_client(thread_params_t* params) {
   conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = -1;
 
-  auto* cb =
-      hrd_ctrl_blk_init(clt_gid, ib_port_index, 9, &conn_config, nullptr);
+  auto* cb = hrd_ctrl_blk_init(clt_gid, ib_port_index, kHrdInvalidNUMANode,
+                               &conn_config, nullptr);
 
   memset(const_cast<uint8_t*>(cb->conn_buf), static_cast<uint8_t>(clt_gid) + 1,
          kAppBufSize);
@@ -125,7 +125,7 @@ void run_client(thread_params_t* params) {
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
   while (1) {
-    if (rolling_iter >= MB(8)) {
+    if (rolling_iter >= MB(4)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;
