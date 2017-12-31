@@ -6,6 +6,8 @@
 __thread FILE* tl_out_fp = nullptr;  // File to record throughput
 __thread hrd_ctrl_blk_t* tl_cb;
 __thread thread_params_t tl_params;
+
+__thread size_t polling_region_size = std::numeric_limits<size_t>::max();
 volatile sig_atomic_t ctrl_c_pressed = 0;
 
 // Is the remote QP for a local QP on the same physical machine?
@@ -96,7 +98,7 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
   // if (FLAGS_machine_id != 0) sleep(100000);
 
   size_t qpn = 0;  // Queue pair number to read or write from
-  size_t rec_qpn_arr[kAppWindowSize] = {0};  // Record which QP we used
+  size_t rec_qpn_arr[kAppMaxWindow] = {0};  // Record which QP we used
   while (true) {
     check_ctrl_c_pressed();
 
@@ -110,7 +112,7 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
           "main: Worker %zu: %.2f M/s. Total active QPs = %zu. "
           "Outstanding ops per thread (for READs) = %zu.\n",
           tl_params.wrkr_gid, tput, kAppNumThreads * kAppNumQPsPerThread,
-          kAppWindowSize);
+          FLAGS_window_size);
 
       tl_params.tput_arr[tl_params.wrkr_gid % kAppNumThreads] = tput;
       if (tl_params.wrkr_lid == 0) {
@@ -126,22 +128,18 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    if (nb_tx_tot >= kAppWindowSize) {
+    if (nb_tx_tot >= FLAGS_window_size) {
       // Poll for both READs and WRITEs if allsig is enabled
       if (kAppAllsig) app_poll_cq(rec_qpn_arr[window_i]);
 
       // For READs, poll to ensure <= kAppWindowSize outstanding READs
       if (FLAGS_do_read == 1) {
+        volatile uint8_t* poll_buf = &tl_cb->conn_buf[window_i * FLAGS_size];
         // Sanity check: If allsig is set, we polled for READ completion above
-        if (kAppAllsig) {
-          rt_assert(tl_cb->conn_buf[window_i * kAppRDMASize] != 0);
-        }
+        if (kAppAllsig) rt_assert(poll_buf[0] != 0);
 
-        while (tl_cb->conn_buf[window_i * kAppRDMASize] == 0) {
-          // If allsig is not set, we poll here
-          check_ctrl_c_pressed();
-        }
-        tl_cb->conn_buf[window_i * kAppRDMASize] = 0;
+        while (poll_buf[0] == 0) check_ctrl_c_pressed();
+        poll_buf[0] = 0;
       }
     }
 
@@ -165,17 +163,18 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
     nb_tx[qpn]++;
 
     sgl.addr =
-        reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppRDMASize]);
-    sgl.length = kAppRDMASize;
+        reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * FLAGS_size]);
+    sgl.length = FLAGS_size;
     sgl.lkey = tl_cb->conn_buf_mr->lkey;
 
     size_t rem_offset = hrd_fastrand(&seed) % kAppBufSize;
     if (kAppRoundOffset) rem_offset = round_up<64, size_t>(rem_offset);
-    while (rem_offset <= kAppPollingRegionSz ||
-           rem_offset >= kAppBufSize - kAppRDMASize) {
+    while (rem_offset <= polling_region_size ||
+           rem_offset >= kAppBufSize - FLAGS_size) {
       rem_offset = hrd_fastrand(&seed) % kAppBufSize;
       if (kAppRoundOffset) rem_offset = round_up<64, size_t>(rem_offset);
     }
+
     wr.wr.rdma.remote_addr = remote_qp_arr[qpn]->buf_addr + rem_offset;
     wr.wr.rdma.rkey = remote_qp_arr[qpn]->rkey;
 
@@ -187,7 +186,9 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
 
     rolling_iter++;
     nb_tx_tot++;
-    mod_add_one<kAppWindowSize>(window_i);
+
+    window_i++;
+    if (window_i == FLAGS_window_size) window_i = 0;
   }
 }
 
@@ -195,6 +196,11 @@ void run_worker(thread_params_t* params) {
   signal(SIGINT, ctrl_c_handler);
   signal(SIGKILL, ctrl_c_handler);
   signal(SIGTERM, ctrl_c_handler);
+
+  // The first window_size slots are zeroed out and used for READ completion
+  // detection. The remaining slots are non-zero and are fetched via READs.
+  polling_region_size = FLAGS_window_size * FLAGS_size;
+  rt_assert(polling_region_size < kAppBufSize / 10, "Polling region too large");
 
   tl_params = *params;
   size_t vport_index = tl_params.wrkr_lid % FLAGS_num_ports;
@@ -222,9 +228,9 @@ void run_worker(thread_params_t* params) {
                             &conn_config, nullptr);
 
   // Zero-out the READ polling region; non-zero the rest.
-  memset(const_cast<uint8_t*>(tl_cb->conn_buf), 0, kAppPollingRegionSz);
-  memset(const_cast<uint8_t*>(tl_cb->conn_buf + kAppPollingRegionSz), 1,
-         kAppBufSize - kAppPollingRegionSz);
+  memset(const_cast<uint8_t*>(tl_cb->conn_buf), 0, polling_region_size);
+  memset(const_cast<uint8_t*>(tl_cb->conn_buf + polling_region_size), 1,
+         kAppBufSize - polling_region_size);
 
   // Publish worker QPs
   for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
@@ -278,6 +284,8 @@ void run_worker(thread_params_t* params) {
 
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+  rt_assert(FLAGS_size <= kHrdMaxInline, "RDMA size too large");
+  rt_assert(FLAGS_window_size <= kAppMaxWindow, "Window size too large");
 
   double tput_arr[kAppNumThreads];
   for (size_t i = 0; i < kAppNumThreads; i++) tput_arr[i] = 0.0;

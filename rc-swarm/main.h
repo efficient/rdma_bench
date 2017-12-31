@@ -26,18 +26,13 @@ static_assert(is_power_of_two(kAppBufSize), "");
 // can increase or decrease performance.
 static constexpr bool kAppRoundOffset = true;
 
-// The first kAppWindowSize slots are zeroed out and used for READ completion
-// detection. The remaining slots are non-zero and are fetched via READs.
-static constexpr size_t kAppPollingRegionSz = kAppWindowSize * kAppRDMASize;
-static_assert(kAppPollingRegionSz < kAppBufSize / 10, "");
-
 static constexpr size_t kAppMaxPorts = 2;        // Max ports for a thread
 static constexpr size_t kAppMaxMachines = 256;   // Max machines in the swarm
+static constexpr size_t kAppMaxWindow = 64;      // Max window size
 static constexpr int kAppWorkerBaseSHMKey = 24;  // SHM keys used by workers
 
 // Checks
 static_assert(kHrdMaxInline == 16, "");  // For single-cacheline WQEs
-static_assert(kAppRDMASize <= kHrdMaxInline, "");
 
 static_assert(kAppNumWorkers % kAppNumMachines == 0, "");
 static_assert(kAppBufSize >= MB(2), "");  // Large buffer, more parallelism
@@ -52,19 +47,21 @@ struct thread_params_t {
 };
 
 // Flags
-DEFINE_uint64(numa_node, 0, "NUMA node");
-DEFINE_uint64(base_port_index, 0, "Base port index");
-DEFINE_uint64(num_ports, 0, "Number of ports");
 DEFINE_uint64(machine_id, 0, "ID of this machine");
+DEFINE_uint64(base_port_index, 0, "Base port index");
+DEFINE_uint64(numa_node, 0, "NUMA node");
+DEFINE_uint64(num_ports, 0, "Number of ports");
 DEFINE_uint64(do_read, 0, "Use RDMA READs?");
+DEFINE_uint64(size, 0, "RDMA size");
+DEFINE_uint64(window_size, 0, "RDMA operation window size");
 
 // File I/O helpers
 
 // Record machine throughput
 void record_sweep_params(FILE* fp) {
   fprintf(fp, "Machine %zu: sweep parameters: ", FLAGS_machine_id);
-  fprintf(fp, "kAppRDMASize %zu, ", kAppRDMASize);
-  fprintf(fp, "kAppWindowSize %zu, ", kAppWindowSize);
+  fprintf(fp, "RDMA size %zu, ", FLAGS_size);
+  fprintf(fp, "Window size %zu, ", FLAGS_window_size);
   fprintf(fp, "kAppUnsigBatch %zu, ", kAppUnsigBatch);
   fprintf(fp, "kAppAllsig %u, ", kAppAllsig);
   fprintf(fp, "kAppNumWorkers %zu, ", kAppNumWorkers);
