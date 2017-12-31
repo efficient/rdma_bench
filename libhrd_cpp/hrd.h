@@ -20,9 +20,7 @@
 #include <stdexcept>
 #include <string>
 
-#define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
-
-static constexpr size_t kHrdMaxUDQPs = 256;  // Maximum number of UD QPs
+static constexpr size_t kHrdMaxInline = 60;
 static constexpr size_t kHrdSQDepth = 128;   // Depth of all SEND queues
 static constexpr size_t kHrdRQDepth = 2048;  // Depth of all RECV queues
 
@@ -30,12 +28,13 @@ static constexpr uint32_t kHrdInvalidNUMANode = 9;
 static constexpr uint32_t kHrdDefaultPSN = 3185;
 static constexpr uint32_t kHrdDefaultQKey = 0x11111111;
 static constexpr size_t kHrdMaxLID = 256;
+static constexpr size_t kHrdMaxUDQPs = 256;  // Maximum number of UD QPs
 
 static constexpr size_t kHrdQPNameSize = 200;
 
 // This needs to be a macro because we don't have Mellanox OFED for Debian
 #define kHrdMlx5Atomics false
-static constexpr size_t kHrdMaxInline = 60;
+#define kHrdReservedNamePrefix "__HRD_RESERVED_NAME_PREFIX"
 
 /// Optimized (x + 1) % N
 template <size_t N>
