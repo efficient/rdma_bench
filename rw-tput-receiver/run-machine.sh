@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 source $(dirname $0)/../scripts/utils.sh
 source $(dirname $0)/../scripts/mlx_env.sh
-export HRD_REGISTRY_IP="fawn-pluto0"
+export HRD_REGISTRY_IP="xia-wimpy"
 
 drop_shm
+exe="../build/rw-tput-receiver"
+chmod +x $exe
 
-num_threads=10			# Threads per client machine
+num_threads=1			# Threads per client machine
 blue "Running $num_threads client threads"
 
 # Check number of arguments
@@ -23,7 +25,7 @@ fi
 
 flags="\
   --num_threads $num_threads \
-	--dual_port 1 \
+	--dual_port 0 \
 	--use_uc 0 \
 	--is_client 1 \
 	--machine_id $1 \
@@ -34,10 +36,10 @@ flags="\
 
 # Check for non-gdb mode
 if [ "$#" -eq 1 ]; then
-  sudo -E numactl --cpunodebind=0 --membind=0 ../build/rw-tput-receiver $flags
+  sudo -E numactl --cpunodebind=0 --membind=0 $exe $flags
 fi
 
 # Check for gdb mode
 if [ "$#" -eq 2 ]; then
-  sudo -E gdb -ex run --args ../build/rw-tput-receiver $flags
+  sudo -E gdb -ex run --args $exe $flags
 fi
