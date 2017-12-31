@@ -520,13 +520,14 @@ void hrd_publish_conn_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name) {
   for (size_t i = 0; i < len; i++) assert(qp_name[i] != ' ');
 
   hrd_qp_attr_t qp_attr;
-  memcpy(qp_attr.name, qp_name, len);
-  qp_attr.name[len] = 0;  // Add the null terminator
+  strcpy(qp_attr.name, qp_name);
+  qp_attr.lid = cb->resolve.port_lid;
+  qp_attr.qpn = cb->conn_qp[n]->qp_num;
+  if (kRoCE) qp_attr.gid = cb->resolve.gid;
+
   qp_attr.buf_addr = reinterpret_cast<uint64_t>(cb->conn_buf);
   qp_attr.buf_size = cb->conn_buf_size;
   qp_attr.rkey = cb->conn_buf_mr->rkey;
-  qp_attr.lid = cb->resolve.port_lid;
-  qp_attr.qpn = cb->conn_qp[n]->qp_num;
 
   hrd_publish(qp_attr.name, &qp_attr, sizeof(hrd_qp_attr_t));
 }
@@ -559,8 +560,6 @@ hrd_qp_attr_t* hrd_get_published_qp(const char* qp_name) {
 
   // The registry lookup returns only if we get a unique QP for @qp_name, or
   // if the memcached lookup succeeds but we don't have an entry for @qp_name.
-  assert(ret_len == static_cast<int>(sizeof(hrd_qp_attr_t)) || ret_len == -1);
-  _unused(ret_len);
-
+  rt_assert(ret_len == sizeof(hrd_qp_attr_t) || ret_len == -1, "");
   return ret;
 }
