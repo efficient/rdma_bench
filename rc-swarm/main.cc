@@ -100,19 +100,18 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
   while (true) {
     check_ctrl_c_pressed();
 
-    if (rolling_iter >= MB(2)) {
+    if (rolling_iter >= KB(512)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;
-      double tput = rolling_iter / seconds;
+      double tput = rolling_iter / (seconds * 1000000);
 
       printf(
-          "main: Worker %zu: %.2f Mops. Total active QPs = %zu. "
+          "main: Worker %zu: %.2f M/s. Total active QPs = %zu. "
           "Outstanding ops per thread (for READs) = %zu.\n",
           tl_params.wrkr_gid, tput, kAppNumThreads * kAppNumQPsPerThread,
           kAppWindowSize);
 
-      // Per-machine throughput computation
       tl_params.tput_arr[tl_params.wrkr_gid % kAppNumThreads] = tput;
       if (tl_params.wrkr_lid == 0) {
         double machine_tput = 0;
@@ -120,10 +119,10 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
           machine_tput += tl_params.tput_arr[i];
         }
         record_machine_tput(tl_out_fp, machine_tput);
-        hrd_red_printf("main: Total tput %.2f Mops\n", machine_tput);
+        hrd_red_printf("main: Total tput %.2f M/s\n", machine_tput);
       }
-      rolling_iter = 0;
 
+      rolling_iter = 0;
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
@@ -154,34 +153,30 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
     wr.num_sge = 1;
     wr.next = nullptr;
     wr.sg_list = &sgl;
+    wr.send_flags = (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
 
     if (!kAppAllsig) {
       // Selective signal polling for non-allsig RDMA is done here
-      wr.send_flags = nb_tx[qpn] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
+      wr.send_flags |= nb_tx[qpn] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
       if (nb_tx[qpn] % kAppUnsigBatch == kAppUnsigBatch - 1) app_poll_cq(qpn);
     } else {
-      wr.send_flags = IBV_SEND_SIGNALED;
+      wr.send_flags |= IBV_SEND_SIGNALED;
     }
-
     nb_tx[qpn]++;
-
-    wr.send_flags |= (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
-
-    size_t _offset = hrd_fastrand(&seed) % kAppBufSize;
-    if (kAppRoundOffset) _offset = round_up<64, size_t>(_offset);
-    while (_offset <= kAppPollingRegionSz ||
-           _offset >= kAppBufSize - kAppRDMASize) {
-      _offset = hrd_fastrand(&seed) % kAppBufSize;
-      if (kAppRoundOffset) _offset = round_up<64, size_t>(_offset);
-    }
 
     sgl.addr =
         reinterpret_cast<uint64_t>(&tl_cb->conn_buf[window_i * kAppRDMASize]);
-
     sgl.length = kAppRDMASize;
     sgl.lkey = tl_cb->conn_buf_mr->lkey;
 
-    wr.wr.rdma.remote_addr = remote_qp_arr[qpn]->buf_addr + _offset;
+    size_t rem_offset = hrd_fastrand(&seed) % kAppBufSize;
+    if (kAppRoundOffset) rem_offset = round_up<64, size_t>(rem_offset);
+    while (rem_offset <= kAppPollingRegionSz ||
+           rem_offset >= kAppBufSize - kAppRDMASize) {
+      rem_offset = hrd_fastrand(&seed) % kAppBufSize;
+      if (kAppRoundOffset) rem_offset = round_up<64, size_t>(rem_offset);
+    }
+    wr.wr.rdma.remote_addr = remote_qp_arr[qpn]->buf_addr + rem_offset;
     wr.wr.rdma.rkey = remote_qp_arr[qpn]->rkey;
 
     // printf("Worker %d: Sending request %lld to over QP %d.\n",
