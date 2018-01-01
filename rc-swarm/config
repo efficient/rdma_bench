@@ -2,7 +2,6 @@
 --num_threads 28
 --vms_per_machine 20
 --base_port_index 0
---numa_node 0
 --num_ports 2
 --size 16
 --do_read 1

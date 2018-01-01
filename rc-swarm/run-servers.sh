@@ -1,39 +1,50 @@
 #!/usr/bin/env bash
 source $(dirname $0)/../scripts/utils.sh
 source $(dirname $0)/../scripts/mlx_env.sh
+
 export HRD_REGISTRY_IP="10.100.3.13"
+export MLX4_SINGLE_THREADED=1
+export MLX5_SINGLE_THREADED=1
+export MLX5_SHUT_UP_BF=0
+export MLX_QP_ALLOC_TYPE="HUGE"
+export MLX_CQ_ALLOC_TYPE="HUGE"
 
 drop_shm
 exe="../build/rc-swarm"
 chmod +x $exe
 
-if [ "$#" -gt 2 -o "$#" -eq 0 ]; then
-  blue "Illegal number of parameters"
-  blue "Params: <machine_number>, or <machine_number> gdb"
+# Check arguments
+if [ "$#" -gt 3 ] || [ "$#" -lt 2 ]; then
+  blue "Illegal args. Usage: do.sh [process_id] [NUMA node] <gdb>"
 	exit
 fi
 
-# The 0th machine hosts the QP registry
-if [ "$1" -eq 0 ]; then
-	blue "Machine 0: Resetting QP registry"
+process_id=$1
+numa_node=$2
+flags="--process_id $1 --numa_node $numa_node $(cat config)"
+
+# The 0th process starts up the QP registry
+if [ "$pid" -eq 0 ]; then
+	blue "Process 0: Resetting QP registry"
 	sudo killall memcached 1>/dev/null 2>/dev/null
 
   # Spawn memcached, but wait for it to start
 	memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &
   while ! nc -z localhost 11211; do sleep .1; done
-  echo "Machine 0: memcached server is open for business on port 11211"
+  echo "Process 0: memcached server is open for business on port 11211"
 fi
 
-blue "Machine $1: Starting worker threads"
+blue "Process $process_id: Starting worker threads"
 rm -f tput-out/*
 
-flags="--machine_id $1 $(cat config)"
-# Check for non-gdb mode
-if [ "$#" -eq 1 ]; then
-  sudo -E numactl --cpunodebind=0 --membind=0 $exe $flags
+# Non-GDB mode
+if [ "$#" -eq 2 ]; then
+  blue "Launching process $epid on NUMA node $numa_node"
+  sudo -E numactl --cpunodebind=$numa_node --membind=$numa_node $exe $flags
 fi
 
-# Check for gdb mode
-if [ "$#" -eq 2 ]; then
-  sudo -E gdb -ex run --args $exe $flags
+# GDB mode
+if [ "$#" -eq 3 ]; then
+  blue "Launching process $epid with GDB"
+  sudo gdb -ex run --args $exe $flags
 fi
