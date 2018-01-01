@@ -106,7 +106,7 @@ void worker_main_loop(const hrd_qp_attr_t** remote_qp_arr) {
   while (true) {
     check_ctrl_c_pressed();
 
-    if (rolling_iter >= KB(512)) {
+    if (rolling_iter >= MB(2)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;

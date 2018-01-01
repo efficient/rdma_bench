@@ -123,11 +123,25 @@ struct hrd_ctrl_blk_t {
 };
 
 struct hrd_conn_config_t {
+  // Required params
   size_t num_qps;
   bool use_uc;
   volatile uint8_t* prealloc_buf;
   size_t buf_size;
   int buf_shm_key;
+
+  // Optional params
+  bool optional_params;
+  size_t sq_depth;
+  size_t rq_depth;
+  size_t max_rd_atomic;
+
+  hrd_conn_config_t() {
+    optional_params = false;
+    sq_depth = SIZE_MAX;
+    rq_depth = SIZE_MAX;
+    max_rd_atomic = SIZE_MAX;
+  }
 };
 
 struct hrd_dgram_config_t {
