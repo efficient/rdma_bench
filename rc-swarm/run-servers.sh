@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source $(dirname $0)/../scripts/utils.sh
 source $(dirname $0)/../scripts/mlx_env.sh
-export HRD_REGISTRY_IP="xia-wimpy"
+export HRD_REGISTRY_IP="10.100.3.13"
 
 drop_shm
 exe="../build/rc-swarm"

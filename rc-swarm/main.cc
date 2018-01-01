@@ -134,13 +134,13 @@ void worker_main_loop(const hrd_qp_attr_t** remote_qp_arr) {
 
     if (nb_tx_tot >= FLAGS_window_size) {
       // Poll for both READs and WRITEs if allsig is enabled
-      if (kAppAllsig) app_poll_cq(rec_qpn_arr[window_i]);
+      if (FLAGS_allsig == 1) app_poll_cq(rec_qpn_arr[window_i]);
 
       // For READs, poll to ensure <= kAppWindowSize outstanding READs
       if (FLAGS_do_read == 1) {
         volatile uint8_t* poll_buf = &tl_cb->conn_buf[window_i * FLAGS_size];
         // Sanity check: If allsig is set, we polled for READ completion above
-        if (kAppAllsig) rt_assert(poll_buf[0] != 0);
+        if (FLAGS_allsig == 1) rt_assert(poll_buf[0] != 0);
 
         while (poll_buf[0] == 0) check_ctrl_c_pressed();
         poll_buf[0] = 0;
@@ -157,8 +157,8 @@ void worker_main_loop(const hrd_qp_attr_t** remote_qp_arr) {
     wr.sg_list = &sgl;
     wr.send_flags = (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
 
-    if (!kAppAllsig) {
-      // Selective signal polling for non-allsig RDMA is done here
+    if (FLAGS_allsig == 0) {
+      // Use selective signaling if allsig is disabled
       wr.send_flags |= nb_tx[qpn] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
       if (nb_tx[qpn] % kAppUnsigBatch == kAppUnsigBatch - 1) app_poll_cq(qpn);
     } else {

@@ -29,8 +29,7 @@ static constexpr size_t kAppMaxWindow = 64;      // Max window size
 static constexpr int kAppWorkerBaseSHMKey = 24;  // SHM keys used by workers
 
 // Checks
-static_assert(kHrdMaxInline == 16, "");  // For single-cacheline WQEs
-
+static_assert(kHrdMaxInline == 16, "");   // For single-cacheline WQEs
 static_assert(kAppBufSize >= MB(2), "");  // Large buffer, more parallelism
 static_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "");  // Queue capacity check
 
@@ -51,6 +50,7 @@ DEFINE_uint64(num_ports, SIZE_MAX, "Number of ports");
 DEFINE_uint64(do_read, SIZE_MAX, "Use RDMA READs?");
 DEFINE_uint64(size, SIZE_MAX, "RDMA size");
 DEFINE_uint64(window_size, SIZE_MAX, "RDMA operation window size");
+DEFINE_uint64(allsig, SIZE_MAX, "Signal all post_sends()?");
 
 // File I/O helpers
 
@@ -61,7 +61,7 @@ void record_sweep_params(FILE* fp) {
   fprintf(fp, "RDMA size %zu, ", FLAGS_size);
   fprintf(fp, "Window size %zu, ", FLAGS_window_size);
   fprintf(fp, "kAppUnsigBatch %zu, ", kAppUnsigBatch);
-  fprintf(fp, "kAppAllsig %u, ", kAppAllsig);
+  fprintf(fp, "Allsig %zu\n", FLAGS_allsig);
   fflush(fp);
 }
 

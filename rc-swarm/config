@@ -1,5 +1,5 @@
---num_machines 2
---num_threads 2
+--num_machines 4
+--num_threads 8
 --vms_per_machine 1
 --base_port_index 0
 --numa_node 0
@@ -7,3 +7,4 @@
 --size 16
 --do_read 1
 --window_size 32
+--allsig 1
