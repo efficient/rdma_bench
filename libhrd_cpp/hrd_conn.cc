@@ -132,6 +132,8 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
         // Hugepages
         while (reg_size < cb->conn_config.buf_size) reg_size += MB(2);
 
+        printf("Using shm key %d\n", cb->conn_config.buf_shm_key);
+
         assert(cb->conn_config.buf_shm_key >= 1);  // SHM key 0 is used by OS
         cb->conn_buf = reinterpret_cast<volatile uint8_t*>(hrd_malloc_socket(
             cb->conn_config.buf_shm_key, reg_size, numa_node));
@@ -204,6 +206,8 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
     }
 
     if (cb->numa_node != kHrdInvalidNUMANode) {
+      printf("cb ID %zu, freeing shm key %d\n", cb->local_hid,
+             cb->conn_config.buf_shm_key);
       if (hrd_free(cb->conn_config.buf_shm_key,
                    const_cast<uint8_t*>(cb->conn_buf))) {
         fprintf(stderr, "HRD: Error freeing conn hugepages for cb %zu\n",

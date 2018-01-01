@@ -1,6 +1,7 @@
 #include "main.h"
 #include <getopt.h>
 #include <signal.h>
+#include <atomic>
 #include <thread>
 
 __thread FILE* tl_out_fp = nullptr;  // File to record throughput
@@ -11,6 +12,7 @@ __thread size_t polling_region_size = SIZE_MAX;
 __thread size_t qps_per_thread = SIZE_MAX;
 
 volatile sig_atomic_t ctrl_c_pressed = 0;
+std::atomic<size_t> num_threads_exited;
 
 // Is the remote QP for a local QP on the same process?
 inline bool is_remote_qp_on_same_process(size_t qp_i) {
@@ -52,32 +54,39 @@ static inline size_t choose_qp(uint64_t* seed) {
 
 void ctrl_c_handler(int) { ctrl_c_pressed = 1; }
 
+void wait_for_all_threads_and_exit() {
+  rt_assert(num_threads_exited < FLAGS_num_threads);
+  printf("main: Worker %zu waiting for all thread to exit.\n",
+         tl_params.wrkr_gid);
+  num_threads_exited++;  // Mark self as exited
+  while (num_threads_exited != FLAGS_num_threads) {
+    usleep(200000);
+  }
+  exit(0);
+}
+
 inline void check_ctrl_c_pressed() {
   if (unlikely(ctrl_c_pressed == 1)) {
     printf("main: Worker %zu destroying cb.\n", tl_params.wrkr_gid);
     hrd_ctrl_blk_destroy(tl_cb);
-    printf("main: Worker %zu waiting a sec before exiting.\n",
-           tl_params.wrkr_gid);
-    sleep(1);  // Wait for other threads before killing process
-    exit(0);
+    wait_for_all_threads_and_exit();
   }
 }
 
 /// Poll one completion from \p qpn. Blocking.
-int app_poll_cq(const size_t qpn) {
+void app_poll_cq(const size_t qpn) {
   struct ibv_wc wc;
   int comps = 0;
   while (true) {
     check_ctrl_c_pressed();
     comps = ibv_poll_cq(tl_cb->conn_cq[qpn], 1, &wc);
-
-    if (comps == 1) return 0;
-
-    if (unlikely(comps < 0)) {
+    if (unlikely(comps < 0 || (comps == 1 && wc.status != IBV_WC_SUCCESS))) {
       printf("main: Worker %zu poll_cq failed. Exiting.\n", tl_params.wrkr_gid);
       hrd_ctrl_blk_destroy(tl_cb);
-      exit(-1);
+      wait_for_all_threads_and_exit();
     }
+
+    if (comps == 1) return;
   }
 }
 
@@ -222,13 +231,12 @@ void run_worker(thread_params_t* params) {
   }
 
   // Create the control block
-  const int wrkr_shm_key = kAppWorkerBaseSHMKey + tl_params.wrkr_gid;
   hrd_conn_config_t conn_config;
   conn_config.num_qps = qps_per_thread;
   conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
   conn_config.buf_size = kAppBufSize;
-  conn_config.buf_shm_key = wrkr_shm_key;
+  conn_config.buf_shm_key = kAppWorkerBaseSHMKey + tl_params.wrkr_gid;
   conn_config.sq_depth = FLAGS_sq_depth;
   conn_config.max_rd_atomic = FLAGS_max_rd_atomic;
   tl_cb = hrd_ctrl_blk_init(tl_params.wrkr_gid, ib_port_index, FLAGS_numa_node,
@@ -305,6 +313,7 @@ int main(int argc, char* argv[]) {
   std::array<std::thread, kAppMaxThreads> threads;
 
   printf("main: Launching %zu swarm workers\n", FLAGS_num_threads);
+  num_threads_exited = 0;
   for (size_t i = 0; i < FLAGS_num_threads; i++) {
     param_arr[i].wrkr_gid = (FLAGS_process_id * FLAGS_num_threads) + i;
     param_arr[i].wrkr_lid = i;
