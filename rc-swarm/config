@@ -1,3 +1,6 @@
+--num_machines 2
+--num_threads 2
+--vms_per_machine 1
 --base_port_index 0
 --numa_node 0
 --num_ports 2

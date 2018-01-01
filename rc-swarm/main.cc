@@ -7,20 +7,22 @@ __thread FILE* tl_out_fp = nullptr;  // File to record throughput
 __thread hrd_ctrl_blk_t* tl_cb;
 __thread thread_params_t tl_params;
 
-__thread size_t polling_region_size = std::numeric_limits<size_t>::max();
+__thread size_t polling_region_size = SIZE_MAX;
+__thread size_t qps_per_thread = SIZE_MAX;
+
 volatile sig_atomic_t ctrl_c_pressed = 0;
 
 // Is the remote QP for a local QP on the same physical machine?
 inline bool is_remote_qp_on_same_physical_mc(size_t qp_i) {
-  return (qp_i % kAppNumMachines == FLAGS_machine_id);
+  return (qp_i % FLAGS_num_machines == FLAGS_machine_id);
 }
 
 // Get the name for the QP index qp_i created by this thread
 void get_qp_name_local(char namebuf[kHrdQPNameSize], size_t qp_i) {
-  assert(qp_i < kAppNumQPsPerThread);
+  assert(qp_i < qps_per_thread);
 
-  size_t for_phys_mc = qp_i % kAppNumMachines;
-  size_t for_vm = qp_i / kAppNumMachines;
+  size_t for_phys_mc = qp_i % FLAGS_num_machines;
+  size_t for_vm = qp_i / FLAGS_num_machines;
 
   sprintf(namebuf, "on_phys_mc_%zu-at_thr_%zu-for_phys_mc_%zu-for_vm_%zu",
           FLAGS_machine_id, tl_params.wrkr_lid, for_phys_mc, for_vm);
@@ -29,10 +31,10 @@ void get_qp_name_local(char namebuf[kHrdQPNameSize], size_t qp_i) {
 // Get the name of the remote QP that QP index qp_i created by this thread
 // should connect to.
 void get_qp_name_remote(char namebuf[kHrdQPNameSize], size_t qp_i) {
-  assert(qp_i < kAppNumQPsPerThread);
+  assert(qp_i < qps_per_thread);
 
-  size_t for_phys_mc = qp_i % kAppNumMachines;
-  size_t for_vm = qp_i / kAppNumMachines;
+  size_t for_phys_mc = qp_i % FLAGS_num_machines;
+  size_t for_vm = qp_i / FLAGS_num_machines;
 
   sprintf(namebuf, "on_phys_mc_%zu-at_thr_%zu-for_phys_mc_%zu-for_vm_%zu",
           for_phys_mc, tl_params.wrkr_lid, FLAGS_machine_id, for_vm);
@@ -43,7 +45,7 @@ static inline size_t choose_qp(uint64_t* seed) {
   size_t qp_i = 0;
 
   while (is_remote_qp_on_same_physical_mc(qp_i)) {
-    qp_i = hrd_fastrand(seed) % kAppNumQPsPerThread;
+    qp_i = hrd_fastrand(seed) % qps_per_thread;
   }
 
   return qp_i;
@@ -80,13 +82,15 @@ int app_poll_cq(const size_t qpn) {
   }
 }
 
-void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
+void worker_main_loop(const hrd_qp_attr_t** remote_qp_arr) {
   struct ibv_send_wr wr, *bad_send_wr;
   struct ibv_sge sgl;
-  size_t rolling_iter = 0;                  // For performance measurement
-  size_t nb_tx[kAppNumQPsPerThread] = {0};  // Per-QP tracking for signaling
-  size_t nb_tx_tot = 0;                     // For windowing (for READs only)
+  size_t rolling_iter = 0;  // For performance measurement
+  size_t nb_tx_tot = 0;     // For windowing (for READs only)
   size_t window_i = 0;
+
+  std::vector<size_t> nb_tx(qps_per_thread);
+  for (auto& s : nb_tx) s = 0;
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
@@ -111,13 +115,13 @@ void worker_main_loop(const hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread]) {
       printf(
           "main: Worker %zu: %.2f M/s. Total active QPs = %zu. "
           "Outstanding ops per thread (for READs) = %zu.\n",
-          tl_params.wrkr_gid, tput, kAppNumThreads * kAppNumQPsPerThread,
+          tl_params.wrkr_gid, tput, FLAGS_num_threads * qps_per_thread,
           FLAGS_window_size);
 
-      tl_params.tput_arr[tl_params.wrkr_gid % kAppNumThreads] = tput;
+      tl_params.tput_arr[tl_params.wrkr_gid % FLAGS_num_threads] = tput;
       if (tl_params.wrkr_lid == 0) {
         double machine_tput = 0;
-        for (size_t i = 0; i < kAppNumThreads; i++) {
+        for (size_t i = 0; i < FLAGS_num_threads; i++) {
           machine_tput += tl_params.tput_arr[i];
         }
         record_machine_tput(tl_out_fp, machine_tput);
@@ -196,6 +200,7 @@ void run_worker(thread_params_t* params) {
   signal(SIGINT, ctrl_c_handler);
   signal(SIGKILL, ctrl_c_handler);
   signal(SIGTERM, ctrl_c_handler);
+  qps_per_thread = FLAGS_num_machines * FLAGS_vms_per_machine;
 
   // The first window_size slots are zeroed out and used for READ completion
   // detection. The remaining slots are non-zero and are fetched via READs.
@@ -217,9 +222,9 @@ void run_worker(thread_params_t* params) {
 
   // Create the control block
   const int wrkr_shm_key =
-      kAppWorkerBaseSHMKey + (tl_params.wrkr_gid % kAppNumThreads);
+      kAppWorkerBaseSHMKey + (tl_params.wrkr_gid % FLAGS_num_threads);
   hrd_conn_config_t conn_config;
-  conn_config.num_qps = kAppNumQPsPerThread;
+  conn_config.num_qps = qps_per_thread;
   conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
   conn_config.buf_size = kAppBufSize;
@@ -233,7 +238,7 @@ void run_worker(thread_params_t* params) {
          kAppBufSize - polling_region_size);
 
   // Publish worker QPs
-  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
+  for (size_t i = 0; i < qps_per_thread; i++) {
     char local_qp_name[kHrdQPNameSize];
     get_qp_name_local(local_qp_name, i);
 
@@ -242,8 +247,8 @@ void run_worker(thread_params_t* params) {
   printf("main: Worker %zu published local QPs\n", tl_params.wrkr_gid);
 
   // Find QPs to connect to
-  hrd_qp_attr_t* remote_qp_arr[kAppNumQPsPerThread] = {nullptr};
-  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
+  auto** remote_qp_arr = new hrd_qp_attr_t*[qps_per_thread];
+  for (size_t i = 0; i < qps_per_thread; i++) {
     // Do not connect if remote QP is on this machine
     if (is_remote_qp_on_same_physical_mc(i)) continue;
 
@@ -252,6 +257,8 @@ void run_worker(thread_params_t* params) {
 
     printf("main: Worker %zu looking for %s.\n", tl_params.wrkr_gid,
            remote_qp_name);
+
+    remote_qp_arr[i] = nullptr;
     while (remote_qp_arr[i] == nullptr) {
       remote_qp_arr[i] = hrd_get_published_qp(remote_qp_name);
       if (remote_qp_arr[i] == nullptr) usleep(20000);
@@ -266,7 +273,7 @@ void run_worker(thread_params_t* params) {
     hrd_publish_ready(local_qp_name);
   }
 
-  for (size_t i = 0; i < kAppNumQPsPerThread; i++) {
+  for (size_t i = 0; i < qps_per_thread; i++) {
     // Do not connect if remote QP is on this machine
     if (is_remote_qp_on_same_physical_mc(i)) continue;
 
@@ -286,22 +293,23 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   rt_assert(FLAGS_size <= kHrdMaxInline, "RDMA size too large");
   rt_assert(FLAGS_window_size <= kAppMaxWindow, "Window size too large");
+  rt_assert(FLAGS_num_threads > 0 && FLAGS_num_threads <= kAppMaxThreads);
 
-  double tput_arr[kAppNumThreads];
-  for (size_t i = 0; i < kAppNumThreads; i++) tput_arr[i] = 0.0;
+  double tput_arr[kAppMaxThreads];
+  for (size_t i = 0; i < kAppMaxThreads; i++) tput_arr[i] = 0.0;
 
-  std::array<thread_params_t, kAppNumThreads> param_arr;
-  std::array<std::thread, kAppNumThreads> thread_arr;
+  std::array<thread_params_t, kAppMaxThreads> param_arr;
+  std::array<std::thread, kAppMaxThreads> thread_arr;
 
-  printf("main: Launching %zu swarm workers\n", kAppNumThreads);
-  for (size_t i = 0; i < kAppNumThreads; i++) {
-    param_arr[i].wrkr_gid = (FLAGS_machine_id * kAppNumThreads) + i;
+  printf("main: Launching %zu swarm workers\n", FLAGS_num_threads);
+  for (size_t i = 0; i < FLAGS_num_threads; i++) {
+    param_arr[i].wrkr_gid = (FLAGS_machine_id * FLAGS_num_threads) + i;
     param_arr[i].wrkr_lid = i;
     param_arr[i].tput_arr = tput_arr;
 
     thread_arr[i] = std::thread(run_worker, &param_arr[i]);
   }
 
-  for (auto& t : thread_arr) t.join();
+  for (size_t i = 0; i < FLAGS_num_threads; i++) thread_arr[i].join();
   return 0;
 }

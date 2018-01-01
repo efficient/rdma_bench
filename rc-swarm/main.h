@@ -15,10 +15,6 @@
 // the number of per-thread outstanding operations per thread with WRITEs is
 // O(NUM_CLIENTS * UNSIG_BATCH).
 
-static constexpr size_t kAppNumThreads = kAppNumWorkers / kAppNumMachines;
-static constexpr size_t kAppNumQPsPerThread =
-    kAppNumMachines * kAppVMsPerMachine;
-
 static constexpr size_t kAppBufSize = MB(2);
 static_assert(is_power_of_two(kAppBufSize), "");
 
@@ -28,16 +24,14 @@ static constexpr bool kAppRoundOffset = true;
 
 static constexpr size_t kAppMaxPorts = 2;        // Max ports for a thread
 static constexpr size_t kAppMaxMachines = 256;   // Max machines in the swarm
+static constexpr size_t kAppMaxThreads = 28;     // Max threads on a machine
 static constexpr size_t kAppMaxWindow = 64;      // Max window size
 static constexpr int kAppWorkerBaseSHMKey = 24;  // SHM keys used by workers
 
 // Checks
 static_assert(kHrdMaxInline == 16, "");  // For single-cacheline WQEs
 
-static_assert(kAppNumWorkers % kAppNumMachines == 0, "");
 static_assert(kAppBufSize >= MB(2), "");  // Large buffer, more parallelism
-static_assert(kAppNumMachines >= 2, "");  // At least 2 machines
-static_assert(kAppNumWorkers % kAppNumMachines == 0, "");  // kAppNumThreads
 static_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "");  // Queue capacity check
 
 struct thread_params_t {
@@ -47,24 +41,27 @@ struct thread_params_t {
 };
 
 // Flags
-DEFINE_uint64(machine_id, 0, "ID of this machine");
-DEFINE_uint64(base_port_index, 0, "Base port index");
-DEFINE_uint64(numa_node, 0, "NUMA node");
-DEFINE_uint64(num_ports, 0, "Number of ports");
-DEFINE_uint64(do_read, 0, "Use RDMA READs?");
-DEFINE_uint64(size, 0, "RDMA size");
-DEFINE_uint64(window_size, 0, "RDMA operation window size");
+DEFINE_uint64(machine_id, SIZE_MAX, "ID of this machine");
+DEFINE_uint64(num_machines, SIZE_MAX, "Physical machines in the cluster");
+DEFINE_uint64(num_threads, SIZE_MAX, "Threads per machine");
+DEFINE_uint64(vms_per_machine, SIZE_MAX, "VMs per physical machine");
+DEFINE_uint64(base_port_index, SIZE_MAX, "Base port index");
+DEFINE_uint64(numa_node, SIZE_MAX, "NUMA node");
+DEFINE_uint64(num_ports, SIZE_MAX, "Number of ports");
+DEFINE_uint64(do_read, SIZE_MAX, "Use RDMA READs?");
+DEFINE_uint64(size, SIZE_MAX, "RDMA size");
+DEFINE_uint64(window_size, SIZE_MAX, "RDMA operation window size");
 
 // File I/O helpers
 
 // Record machine throughput
 void record_sweep_params(FILE* fp) {
   fprintf(fp, "Machine %zu: sweep parameters: ", FLAGS_machine_id);
+  fprintf(fp, "Threads per machine %zu, ", FLAGS_num_threads);
   fprintf(fp, "RDMA size %zu, ", FLAGS_size);
   fprintf(fp, "Window size %zu, ", FLAGS_window_size);
   fprintf(fp, "kAppUnsigBatch %zu, ", kAppUnsigBatch);
   fprintf(fp, "kAppAllsig %u, ", kAppAllsig);
-  fprintf(fp, "kAppNumWorkers %zu, ", kAppNumWorkers);
   fflush(fp);
 }
 
