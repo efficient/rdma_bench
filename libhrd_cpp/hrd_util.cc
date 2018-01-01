@@ -466,3 +466,14 @@ void hrd_post_dgram_recv(struct ibv_qp* qp, void* buf_addr, size_t len,
     exit(-1);
   }
 }
+
+void hrd_bind_to_core(std::thread& thread, size_t n) {
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(n, &cpuset);
+  int rc = pthread_setaffinity_np(thread.native_handle(), sizeof(cpu_set_t),
+                                  &cpuset);
+  if (rc != 0) {
+    throw std::runtime_error("Error setting thread affinity.\n");
+  }
+}

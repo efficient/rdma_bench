@@ -21,10 +21,9 @@ fi
 
 process_id=$1
 numa_node=$2
-flags="--process_id $1 --numa_node $numa_node $(cat config)"
 
 # The 0th process starts up the QP registry
-if [ "$pid" -eq 0 ]; then
+if [ "$process_id" -eq 0 ]; then
 	blue "Process 0: Resetting QP registry"
 	sudo killall memcached 1>/dev/null 2>/dev/null
 
@@ -37,9 +36,11 @@ fi
 blue "Process $process_id: Starting worker threads"
 rm -f tput-out/*
 
+flags="--process_id $process_id --numa_node $numa_node $(cat config)"
+
 # Non-GDB mode
 if [ "$#" -eq 2 ]; then
-  blue "Launching process $epid on NUMA node $numa_node"
+  blue "Launching process $process_id on NUMA node $numa_node"
   sudo -E numactl --cpunodebind=$numa_node --membind=$numa_node $exe $flags
 fi
 

@@ -1,6 +1,6 @@
---num_machines 4
---num_threads 28
---vms_per_machine 20
+--num_processes 2
+--num_threads 2
+--vms_per_process 20
 --base_port_index 0
 --num_ports 2
 --size 16

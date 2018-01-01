@@ -20,6 +20,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 
 static constexpr size_t kRoCE = true;  ///< Use RoCE
 static constexpr size_t kHrdMaxInline = 16;
@@ -249,5 +250,6 @@ void hrd_red_printf(const char* format, ...);
 void hrd_get_formatted_time(char* timebuf);
 void hrd_nano_sleep(size_t ns);
 char* hrd_getenv(const char* name);
+void hrd_bind_to_core(std::thread& thread, size_t n);
 
 #endif  // HRD_H
