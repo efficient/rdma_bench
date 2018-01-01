@@ -9,7 +9,6 @@ export MLX5_SHUT_UP_BF=0
 export MLX_QP_ALLOC_TYPE="HUGE"
 export MLX_CQ_ALLOC_TYPE="HUGE"
 
-drop_shm
 exe="../build/rc-swarm"
 chmod +x $exe
 
