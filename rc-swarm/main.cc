@@ -222,7 +222,7 @@ void run_worker(thread_params_t* params) {
   }
 
   // Create the control block
-  const int wrkr_shm_key = kAppWorkerBaseSHMKey + tl_params.wrkr_lid;
+  const int wrkr_shm_key = kAppWorkerBaseSHMKey + tl_params.wrkr_gid;
   hrd_conn_config_t conn_config;
   conn_config.num_qps = qps_per_thread;
   conn_config.use_uc = false;

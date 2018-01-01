@@ -92,8 +92,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
         // Hugepages
         while (reg_size < cb->dgram_buf_size) reg_size += MB(2);
 
-        // SHM key 0 is hard to free later
-        assert(cb->dgram_buf_shm_key >= 1 && cb->dgram_buf_shm_key <= 128);
+        assert(cb->dgram_buf_shm_key >= 1);  // SHM key 0 is used by OS
         cb->dgram_buf = reinterpret_cast<volatile uint8_t*>(
             hrd_malloc_socket(cb->dgram_buf_shm_key, reg_size, numa_node));
       } else {
@@ -133,9 +132,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
         // Hugepages
         while (reg_size < cb->conn_config.buf_size) reg_size += MB(2);
 
-        // SHM key 0 is hard to free later
-        assert(cb->conn_config.buf_shm_key >= 1 &&
-               cb->conn_config.buf_shm_key <= 128);
+        assert(cb->conn_config.buf_shm_key >= 1);  // SHM key 0 is used by OS
         cb->conn_buf = reinterpret_cast<volatile uint8_t*>(hrd_malloc_socket(
             cb->conn_config.buf_shm_key, reg_size, numa_node));
       } else {
