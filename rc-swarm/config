@@ -1,6 +1,6 @@
---num_machines 4
---num_threads 14
---vms_per_machine 20
+--num_machines 2
+--num_threads 2
+--vms_per_machine 2
 --base_port_index 0
 --numa_node 0
 --num_ports 2
@@ -8,3 +8,6 @@
 --do_read 1
 --window_size 16
 --allsig 1
+--unsig_batch 16
+--sq_depth 32
+--max_rd_atomic 4

@@ -159,8 +159,9 @@ void worker_main_loop(const hrd_qp_attr_t** remote_qp_arr) {
 
     if (FLAGS_allsig == 0) {
       // Use selective signaling if allsig is disabled
-      wr.send_flags |= nb_tx[qpn] % kAppUnsigBatch == 0 ? IBV_SEND_SIGNALED : 0;
-      if (nb_tx[qpn] % kAppUnsigBatch == kAppUnsigBatch - 1) app_poll_cq(qpn);
+      size_t mod = nb_tx[qpn] % FLAGS_unsig_batch;
+      wr.send_flags |= (mod == 0) ? IBV_SEND_SIGNALED : 0;
+      if (mod == FLAGS_unsig_batch - 1) app_poll_cq(qpn);
     } else {
       wr.send_flags |= IBV_SEND_SIGNALED;
     }
@@ -229,6 +230,8 @@ void run_worker(thread_params_t* params) {
   conn_config.prealloc_buf = nullptr;
   conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = wrkr_shm_key;
+  conn_config.sq_depth = FLAGS_sq_depth;
+  conn_config.max_rd_atomic = FLAGS_max_rd_atomic;
   tl_cb = hrd_ctrl_blk_init(tl_params.wrkr_gid, ib_port_index, FLAGS_numa_node,
                             &conn_config, nullptr);
 
@@ -294,6 +297,7 @@ int main(int argc, char* argv[]) {
   rt_assert(FLAGS_size <= kHrdMaxInline, "RDMA size too large");
   rt_assert(FLAGS_window_size <= kAppMaxWindow, "Window size too large");
   rt_assert(FLAGS_num_threads > 0 && FLAGS_num_threads <= kAppMaxThreads);
+  rt_assert(FLAGS_sq_depth >= 2 * FLAGS_unsig_batch, "");  // Queue cap check
 
   double tput_arr[kAppMaxThreads];
   for (size_t i = 0; i < kAppMaxThreads; i++) tput_arr[i] = 0.0;

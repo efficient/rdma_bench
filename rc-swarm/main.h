@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <array>
 #include "libhrd_cpp/hrd.h"
-#include "sweep.h"
 
 // kAppWindowSize is the number of outstanding requests kept by a worker thread
 // across all its QPs. This is only used for READs where we can detect
@@ -13,7 +12,7 @@
 //
 // For WRITEs, this is hard to do unless we make every send() signaled. So,
 // the number of per-thread outstanding operations per thread with WRITEs is
-// O(NUM_CLIENTS * UNSIG_BATCH).
+// O(qps_per_thread * unsig_batch).
 
 static constexpr size_t kAppBufSize = MB(2);
 static_assert(is_power_of_two(kAppBufSize), "");
@@ -31,7 +30,6 @@ static constexpr int kAppWorkerBaseSHMKey = 24;  // SHM keys used by workers
 // Checks
 static_assert(kHrdMaxInline == 16, "");   // For single-cacheline WQEs
 static_assert(kAppBufSize >= MB(2), "");  // Large buffer, more parallelism
-static_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "");  // Queue capacity check
 
 struct thread_params_t {
   size_t wrkr_gid;
@@ -51,6 +49,9 @@ DEFINE_uint64(do_read, SIZE_MAX, "Use RDMA READs?");
 DEFINE_uint64(size, SIZE_MAX, "RDMA size");
 DEFINE_uint64(window_size, SIZE_MAX, "RDMA operation window size");
 DEFINE_uint64(allsig, SIZE_MAX, "Signal all post_sends()?");
+DEFINE_uint64(sq_depth, SIZE_MAX, "SEND queue depth");
+DEFINE_uint64(unsig_batch, SIZE_MAX, "Selective signaling batch");
+DEFINE_uint64(max_rd_atomic, SIZE_MAX, "QP's max_rd_atomic");
 
 // File I/O helpers
 
@@ -60,7 +61,7 @@ void record_sweep_params(FILE* fp) {
   fprintf(fp, "Threads per machine %zu, ", FLAGS_num_threads);
   fprintf(fp, "RDMA size %zu, ", FLAGS_size);
   fprintf(fp, "Window size %zu, ", FLAGS_window_size);
-  fprintf(fp, "kAppUnsigBatch %zu, ", kAppUnsigBatch);
+  fprintf(fp, "kAppUnsigBatch %zu, ", FLAGS_unsig_batch);
   fprintf(fp, "Allsig %zu\n", FLAGS_allsig);
   fflush(fp);
 }
