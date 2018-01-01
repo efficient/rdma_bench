@@ -42,8 +42,7 @@ void get_qp_name_remote(char namebuf[kHrdQPNameSize], size_t qp_i) {
 
 // Choose a QP to send an RDMA on
 static inline size_t choose_qp(uint64_t* seed) {
-  size_t qp_i = 0;
-
+  size_t qp_i = hrd_fastrand(seed) % qps_per_thread;
   while (is_remote_qp_on_same_physical_mc(qp_i)) {
     qp_i = hrd_fastrand(seed) % qps_per_thread;
   }
