@@ -133,7 +133,7 @@ void worker_main_loop(const hrd_qp_attr_t** remote_qp_arr) {
       // Poll for both READs and WRITEs if allsig is enabled
       if (FLAGS_allsig == 1) app_poll_cq(rec_qpn_arr[window_i]);
 
-      // For READs, poll to ensure <= kAppWindowSize outstanding READs
+      // For READs, always poll to ensure <= kAppWindowSize outstanding READs
       if (FLAGS_do_read == 1) {
         volatile uint8_t* poll_buf = &tl_cb->conn_buf[window_i * FLAGS_size];
         // Sanity check: If allsig is set, we polled for READ completion above

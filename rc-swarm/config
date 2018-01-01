@@ -1,11 +1,11 @@
---num_processes 2
---num_threads 2
---vms_per_process 20
+--num_processes 8
+--num_threads 14
+--vms_per_process 1
 --base_port_index 0
 --num_ports 2
 --size 16
 --do_read 1
---window_size 8
+--window_size 16
 --allsig 1
 --unsig_batch 16
 --sq_depth 32
