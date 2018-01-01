@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -81,6 +82,36 @@ struct hrd_qp_attr_t {
   uint32_t rkey;
 };
 
+struct hrd_conn_config_t {
+  // Required params
+  size_t num_qps = 0;  // num_qps > 0 is used as a validity check
+  bool use_uc;
+  volatile uint8_t* prealloc_buf;
+  size_t buf_size;
+  int buf_shm_key;
+
+  // Optional params with their default values
+  size_t sq_depth = kHrdSQDepth;
+  size_t max_rd_atomic = 16;
+
+  std::string to_string() {
+    std::ostringstream ret;
+    ret << "[num_qps " << std::to_string(num_qps) << ", use_uc "
+        << std::to_string(use_uc) << ", buf size " << std::to_string(buf_size)
+        << ", shm key " << std::to_string(buf_shm_key) << ", sq_depth "
+        << std::to_string(sq_depth) << ", max_rd_atomic "
+        << std::to_string(max_rd_atomic) << "]";
+    return ret.str();
+  }
+};
+
+struct hrd_dgram_config_t {
+  size_t num_qps;
+  volatile uint8_t* prealloc_buf;
+  size_t buf_size;
+  int buf_shm_key;
+};
+
 struct hrd_ctrl_blk_t {
   size_t local_hid;  // Local ID on the machine this process runs on
 
@@ -101,13 +132,10 @@ struct hrd_ctrl_blk_t {
   struct ibv_pd* pd;  // A protection domain for this control block
 
   // Connected QPs
-  bool use_uc;
-  size_t num_conn_qps;
+  hrd_conn_config_t conn_config;
   struct ibv_qp** conn_qp;
   struct ibv_cq** conn_cq;
   volatile uint8_t* conn_buf;  // A buffer for RDMA over RC/UC QPs
-  size_t conn_buf_size;
-  int conn_buf_shm_key;
   struct ibv_mr* conn_buf_mr;
 
   // Datagram QPs
@@ -120,35 +148,6 @@ struct hrd_ctrl_blk_t {
   struct ibv_mr* dgram_buf_mr;
 
   uint8_t pad[64];
-};
-
-struct hrd_conn_config_t {
-  // Required params
-  size_t num_qps;
-  bool use_uc;
-  volatile uint8_t* prealloc_buf;
-  size_t buf_size;
-  int buf_shm_key;
-
-  // Optional params
-  bool optional_params;
-  size_t sq_depth;
-  size_t rq_depth;
-  size_t max_rd_atomic;
-
-  hrd_conn_config_t() {
-    optional_params = false;
-    sq_depth = SIZE_MAX;
-    rq_depth = SIZE_MAX;
-    max_rd_atomic = SIZE_MAX;
-  }
-};
-
-struct hrd_dgram_config_t {
-  size_t num_qps;
-  volatile uint8_t* prealloc_buf;
-  size_t buf_size;
-  int buf_shm_key;
 };
 
 // Major initialzation functions

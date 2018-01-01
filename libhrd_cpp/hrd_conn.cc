@@ -9,7 +9,6 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
                                          hrd_dgram_config_t* dgram_config) {
   if (kHrdMlx5Atomics) {
     rt_assert(!kRoCE, "mlx5 atomics not supported with RoCE");
-
     hrd_red_printf(
         "HRD: Connect-IB atomics enabled. This QP setup has not "
         "been tested for non-atomics performance.\n");
@@ -24,11 +23,8 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
   }
 
   if (conn_config != nullptr) {
-    hrd_red_printf(
-        "HRD: control block %zu: "
-        "conn qps %zu UC %d, conn buf %zu bytes (key %d).\n",
-        local_hid, conn_config->num_qps, conn_config->use_uc,
-        conn_config->buf_size, conn_config->buf_shm_key);
+    hrd_red_printf("HRD: control block %zu: Conn config = %s\n", local_hid,
+                   conn_config->to_string().c_str());
   }
 
   if (dgram_config != nullptr) {
@@ -53,15 +49,12 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
 
   // Connected QPs
   if (conn_config != nullptr) {
-    cb->num_conn_qps = conn_config->num_qps;
-    cb->use_uc = conn_config->use_uc;
-    cb->conn_buf_size = conn_config->buf_size;
-    cb->conn_buf_shm_key = conn_config->buf_shm_key;
-
-    assert(cb->conn_buf_size <= MB(1024));
+    assert(conn_config->buf_size <= MB(1024));
     if (conn_config->prealloc_buf != nullptr) {
-      assert(cb->conn_buf_shm_key == -1);
+      assert(conn_config->buf_shm_key == -1);
     }
+
+    cb->conn_config = *conn_config;
   }
 
   // Datagram QPs
@@ -125,9 +118,9 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
 
   // Create connected QPs and transition them to RTS.
   // Create and register connected QP RDMA buffer.
-  if (cb->num_conn_qps >= 1) {
-    cb->conn_qp = new ibv_qp*[cb->num_conn_qps];
-    cb->conn_cq = new ibv_cq*[cb->num_conn_qps];
+  if (cb->conn_config.num_qps >= 1) {
+    cb->conn_qp = new ibv_qp*[cb->conn_config.num_qps];
+    cb->conn_cq = new ibv_cq*[cb->conn_config.num_qps];
 
     hrd_create_conn_qps(cb);
 
@@ -138,14 +131,15 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
       // If numa_node is invalid, use standard heap
       if (numa_node != kHrdInvalidNUMANode) {
         // Hugepages
-        while (reg_size < cb->conn_buf_size) reg_size += MB(2);
+        while (reg_size < cb->conn_config.buf_size) reg_size += MB(2);
 
         // SHM key 0 is hard to free later
-        assert(cb->conn_buf_shm_key >= 1 && cb->conn_buf_shm_key <= 128);
-        cb->conn_buf = reinterpret_cast<volatile uint8_t*>(
-            hrd_malloc_socket(cb->conn_buf_shm_key, reg_size, numa_node));
+        assert(cb->conn_config.buf_shm_key >= 1 &&
+               cb->conn_config.buf_shm_key <= 128);
+        cb->conn_buf = reinterpret_cast<volatile uint8_t*>(hrd_malloc_socket(
+            cb->conn_config.buf_shm_key, reg_size, numa_node));
       } else {
-        reg_size = cb->conn_buf_size;
+        reg_size = cb->conn_config.buf_size;
         cb->conn_buf =
             reinterpret_cast<volatile uint8_t*>(memalign(4096, reg_size));
         assert(cb->conn_buf != nullptr);
@@ -157,7 +151,7 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
     } else {
       cb->conn_buf = const_cast<volatile uint8_t*>(conn_config->prealloc_buf);
       cb->conn_buf_mr = ibv_reg_mr(cb->pd, const_cast<uint8_t*>(cb->conn_buf),
-                                   cb->conn_buf_size, ib_flags);
+                                   cb->conn_config.buf_size, ib_flags);
       assert(cb->conn_buf_mr != nullptr);
     }
   }
@@ -181,7 +175,7 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
               "Failed to destroy dgram RECV CQ");
   }
 
-  for (size_t i = 0; i < cb->num_conn_qps; i++) {
+  for (size_t i = 0; i < cb->conn_config.num_qps; i++) {
     rt_assert(ibv_destroy_qp(cb->conn_qp[i]) == 0,
               "Failed to destroy dgram QP");
 
@@ -204,7 +198,7 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
     }
   }
 
-  if (cb->num_conn_qps > 0) {
+  if (cb->conn_config.num_qps > 0) {
     assert(cb->conn_buf_mr != nullptr);
     if (ibv_dereg_mr(cb->conn_buf_mr)) {
       fprintf(stderr, "HRD: Couldn't deregister conn MR for cb %zu\n",
@@ -213,7 +207,8 @@ int hrd_ctrl_blk_destroy(hrd_ctrl_blk_t* cb) {
     }
 
     if (cb->numa_node != kHrdInvalidNUMANode) {
-      if (hrd_free(cb->conn_buf_shm_key, const_cast<uint8_t*>(cb->conn_buf))) {
+      if (hrd_free(cb->conn_config.buf_shm_key,
+                   const_cast<uint8_t*>(cb->conn_buf))) {
         fprintf(stderr, "HRD: Error freeing conn hugepages for cb %zu\n",
                 cb->local_hid);
       }
@@ -311,11 +306,11 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
 // Create connected QPs and transition them to INIT
 void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
   assert(cb->pd != nullptr && cb->resolve.ib_ctx != nullptr);
-  assert(cb->num_conn_qps >= 1 && cb->resolve.dev_port_id >= 1);
+  assert(cb->conn_config.num_qps >= 1 && cb->resolve.dev_port_id >= 1);
 
-  for (size_t i = 0; i < cb->num_conn_qps; i++) {
-    cb->conn_cq[i] =
-        ibv_create_cq(cb->resolve.ib_ctx, kHrdSQDepth, nullptr, nullptr, 0);
+  for (size_t i = 0; i < cb->conn_config.num_qps; i++) {
+    cb->conn_cq[i] = ibv_create_cq(cb->resolve.ib_ctx, cb->conn_config.sq_depth,
+                                   nullptr, nullptr, 0);
     rt_assert(cb->conn_cq[i] != nullptr, "Failed to create conn CQ");
 
 #if (kHrdMlx5Atomics == false)
@@ -323,9 +318,9 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
     memset(&create_attr, 0, sizeof(struct ibv_qp_init_attr));
     create_attr.send_cq = cb->conn_cq[i];
     create_attr.recv_cq = cb->conn_cq[i];
-    create_attr.qp_type = cb->use_uc == 1 ? IBV_QPT_UC : IBV_QPT_RC;
+    create_attr.qp_type = cb->conn_config.use_uc ? IBV_QPT_UC : IBV_QPT_RC;
 
-    create_attr.cap.max_send_wr = kHrdSQDepth;
+    create_attr.cap.max_send_wr = cb->conn_config.sq_depth;
     create_attr.cap.max_recv_wr = 1;  // We don't do RECVs on conn QPs
     create_attr.cap.max_send_sge = 1;
     create_attr.cap.max_recv_sge = 1;
@@ -339,10 +334,11 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
     init_attr.qp_state = IBV_QPS_INIT;
     init_attr.pkey_index = 0;
     init_attr.port_num = cb->resolve.dev_port_id;
-    init_attr.qp_access_flags = cb->use_uc == 1 ? IBV_ACCESS_REMOTE_WRITE
-                                                : IBV_ACCESS_REMOTE_WRITE |
-                                                      IBV_ACCESS_REMOTE_READ |
-                                                      IBV_ACCESS_REMOTE_ATOMIC;
+    init_attr.qp_access_flags = cb->conn_config.use_uc
+                                    ? IBV_ACCESS_REMOTE_WRITE
+                                    : IBV_ACCESS_REMOTE_WRITE |
+                                          IBV_ACCESS_REMOTE_READ |
+                                          IBV_ACCESS_REMOTE_ATOMIC;
 
     if (ibv_modify_qp(cb->conn_qp[i], &init_attr,
                       IBV_QP_STATE | IBV_QP_PKEY_INDEX | IBV_QP_PORT |
@@ -358,7 +354,7 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
     create_attr.pd = cb->pd;
     create_attr.send_cq = cb->conn_cq[i];
     create_attr.recv_cq = cb->conn_cq[i];
-    create_attr.cap.max_send_wr = kHrdSQDepth;
+    create_attr.cap.max_send_wr = cb->conn_config.sq_depth;
     create_attr.cap.max_recv_wr = 1;  // We don't do RECVs on conn QPs
     create_attr.cap.max_send_sge = 1;
     create_attr.cap.max_recv_sge = 1;
@@ -397,7 +393,7 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
 // Connects @cb's queue pair index @n to remote QP @remote_qp_attr
 void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
                     hrd_qp_attr_t* remote_qp_attr) {
-  assert(n < cb->num_conn_qps);
+  assert(n < cb->conn_config.num_qps);
   assert(cb->conn_qp[n] != nullptr);
   assert(cb->resolve.dev_port_id >= 1);
 
@@ -427,8 +423,8 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
   int rtr_flags = IBV_QP_STATE | IBV_QP_AV | IBV_QP_PATH_MTU | IBV_QP_DEST_QPN |
                   IBV_QP_RQ_PSN;
 
-  if (!cb->use_uc) {
-    conn_attr.max_dest_rd_atomic = 16;
+  if (!cb->conn_config.use_uc) {
+    conn_attr.max_dest_rd_atomic = cb->conn_config.max_rd_atomic;
     conn_attr.min_rnr_timer = 12;
     rtr_flags |= IBV_QP_MAX_DEST_RD_ATOMIC | IBV_QP_MIN_RNR_TIMER;
   }
@@ -444,12 +440,12 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
 
   int rts_flags = IBV_QP_STATE | IBV_QP_SQ_PSN;
 
-  if (!cb->use_uc) {
+  if (!cb->conn_config.use_uc) {
     conn_attr.timeout = 14;
     conn_attr.retry_cnt = 7;
     conn_attr.rnr_retry = 7;
-    conn_attr.max_rd_atomic = 16;
-    conn_attr.max_dest_rd_atomic = 16;
+    conn_attr.max_rd_atomic = cb->conn_config.max_rd_atomic;
+    conn_attr.max_dest_rd_atomic = cb->conn_config.max_rd_atomic;
     rts_flags |= IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
                  IBV_QP_MAX_QP_RD_ATOMIC;
   }
@@ -512,7 +508,7 @@ void hrd_connect_qp(hrd_ctrl_blk_t* cb, size_t n,
 }
 
 void hrd_publish_conn_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name) {
-  assert(n < cb->num_conn_qps);
+  assert(n < cb->conn_config.num_qps);
   assert(strlen(qp_name) < kHrdQPNameSize - 1);
   assert(strstr(qp_name, kHrdReservedNamePrefix) == nullptr);
 
@@ -526,7 +522,7 @@ void hrd_publish_conn_qp(hrd_ctrl_blk_t* cb, size_t n, const char* qp_name) {
   if (kRoCE) qp_attr.gid = cb->resolve.gid;
 
   qp_attr.buf_addr = reinterpret_cast<uint64_t>(cb->conn_buf);
-  qp_attr.buf_size = cb->conn_buf_size;
+  qp_attr.buf_size = cb->conn_config.buf_size;
   qp_attr.rkey = cb->conn_buf_mr->rkey;
 
   hrd_publish(qp_attr.name, &qp_attr, sizeof(hrd_qp_attr_t));
