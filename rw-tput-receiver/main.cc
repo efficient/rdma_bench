@@ -6,7 +6,6 @@
 #include "libhrd_cpp/hrd.h"
 
 static constexpr size_t kAppBufSize = (8 * 1024 * 1024);
-static constexpr size_t kAppCachelineSize = 64;
 static constexpr size_t kAppMaxPostlist = 64;
 static constexpr size_t kAppUnsigBatch = 64;
 
@@ -118,9 +117,9 @@ void run_client(thread_params_t* params) {
 
   // The reads/writes at different postlist positions should be done to/from
   // different cache lines.
-  size_t offset = kAppCachelineSize;
-  while (offset < FLAGS_size) offset += kAppCachelineSize;
-  assert(offset * FLAGS_postlist <= kAppBufSize);
+  size_t stride = 64;
+  while (stride < FLAGS_size) stride += 64;
+  rt_assert(stride * FLAGS_postlist <= kAppBufSize);
 
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
@@ -144,7 +143,7 @@ void run_client(thread_params_t* params) {
       clock_gettime(CLOCK_REALTIME, &start);
     }
 
-    // Post a postlist of work requests in a single ibv_post_send()
+    // Post a batch
     for (size_t w_i = 0; w_i < FLAGS_postlist; w_i++) {
       wr[w_i].opcode = opcode;
       wr[w_i].num_sge = 1;
@@ -158,14 +157,11 @@ void run_client(thread_params_t* params) {
 
       wr[w_i].send_flags |= FLAGS_do_read == 0 ? IBV_SEND_INLINE : 0;
 
-      sgl[w_i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[offset * w_i]);
+      sgl[w_i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[stride * w_i]);
       sgl[w_i].length = FLAGS_size;
       sgl[w_i].lkey = cb->conn_buf_mr->lkey;
 
-      wr[w_i].wr.rdma.remote_addr =
-          srv_qp->buf_addr +
-          // offset * (fastrand(&seed) % (kAppBufSize / offset - 1));
-          offset * w_i;
+      wr[w_i].wr.rdma.remote_addr = srv_qp->buf_addr + (stride * w_i);
       wr[w_i].wr.rdma.rkey = srv_qp->rkey;
 
       nb_tx++;
