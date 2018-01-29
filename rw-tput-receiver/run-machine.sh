@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 source $(dirname $0)/../scripts/utils.sh
 source $(dirname $0)/../scripts/mlx_env.sh
-export HRD_REGISTRY_IP="xia-wimpy"
+export HRD_REGISTRY_IP="fawn-pluto0"
 
 drop_shm
 exe="../build/rw-tput-receiver"
 chmod +x $exe
 
-num_threads=4			# Threads per client machine
+num_threads=1			# Threads per client machine
 blue "Running $num_threads client threads"
 
 # Check number of arguments
@@ -25,13 +25,13 @@ fi
 
 flags="\
   --num_threads $num_threads \
-	--dual_port 1 \
+	--dual_port 0 \
 	--use_uc 0 \
 	--is_client 1 \
 	--machine_id $1 \
 	--size 32 \
 	--postlist 4 \
-  --do_read 1
+  --do_read 0
 "
 
 # Check for non-gdb mode
