@@ -14,8 +14,10 @@ These parameters are defined in `main.c`, `run-servers.sh`, and `run-machine.sh`
   * `UNSIG_BATCH`: One `post_send()` per `UNSIG_BATCH` reads/writes is signaled
 
 ## Running the benchmark
-1. At the server machine: `./run-servers.sh`
-2. At client machine `i` of `num_server_threads / num_threads` client machines:
+1. Change `HRD_REGISTRY_IP` in both `run-servers.sh` and `run-machine.sh` to
+   the server's IP address.
+2. At the server machine: `./run-servers.sh`
+3. At client machine `i` of `num_server_threads / num_threads` client machines:
    `./run-machine.sh i`
 
 ## Connection logic
