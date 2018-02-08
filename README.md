@@ -119,7 +119,7 @@ With a QP of size `N`, `N - 1` work requests are allowed to be un-ACKed by the
 InfiniBand/RoCE specification.
 
 ## Work in progress
-The benchmarks is being ported to use C++ and CMake. Some benchmarks will
+The benchmarks are being ported to use C++ and CMake. Some benchmarks will
 continue to use C (i.e., `libhrd`); others will move to C++ (i.e., `libhrd_cpp`).
 
 ## Contact
