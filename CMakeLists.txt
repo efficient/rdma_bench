@@ -16,11 +16,6 @@ add_definitions(-g)
 
 set(LIBRARIES ${LIBRARIES} rt numa ibverbs pthread gflags papi memcached)
 
-# Testing
-enable_testing()
-find_package(GTest REQUIRED)
-
-include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(${CMAKE_SOURCE_DIR})
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/build)
