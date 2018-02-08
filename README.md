@@ -3,13 +3,12 @@ A framework to understand RDMA performance. This is the source code for our
 [USENIX ATC paper](http://www.cs.cmu.edu/~akalia/doc/atc16/rdma_bench_atc.pdf).
 
 ## Required hardware and software
- * InfiniBand HCAs. RoCE HCAs have not been tested, but should work with minor
-   modifications. See `is_roce()` usage in [HERD](https://github.com/efficient/HERD)
-   for details.
- * Ubuntu 12.04+ with Mellanox OFED 2.4+. Some benchmarks have been tested with
-   CentOS 7 with OpenFabrics OFED.
- * memcached, libmemcached-dev, libmemcached-tools
- * libnuma-dev (numactl-devel on CentOS)
+ * InfiniBand HCAs. Some C++ benchmarks work with RoCE HCAs.
+ * Linux-based OS with RDMA drivers (Mellanox OFED or upstream OFED). Ubuntu,
+   RHEL, and CentOS have been tested.
+ * Software packages: cmake, memcached
+ * Libraries: gflags, libmemcached-dev, libmemcached-tools, libnuma-dev (or numactl-devel)
+ * Root access is required only for hugepages.
 
 ## Required settings
 All benchmarks require one server machine and multiple client machines. Every
@@ -18,7 +17,7 @@ benchmark is contained in one directory.
    file. The server will wait for all clients to launch, so the benchmarks won't
    make progress until the correct number of clients are launched.
  * Modify `HRD_REGISTRY_IP` in `run-servers.sh` and `run-machines.sh` to the IP
-   address of the server machine. This machine runs a memcached instance that is
+   address of the server machine. The server runs a memcached instance that is
    used as a queue pair registry.
  * Allocate hugepages on the NIC's socket at the server machine. On our machines,
    the NIC is attached to socket 0, so all benchmark scripts bind allocated
