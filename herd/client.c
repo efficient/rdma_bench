@@ -178,9 +178,8 @@ void* run_client(void* arg) {
     }
     wr.send_flags |= IBV_SEND_INLINE;
 
-    wr.wr.rdma.remote_addr =
-        mstr_qp->buf_addr +
-        OFFSET(wn, clt_gid, ws[wn]) * sizeof(struct mica_op);
+    wr.wr.rdma.remote_addr = mstr_qp->buf_addr + OFFSET(wn, clt_gid, ws[wn]) *
+                                                     sizeof(struct mica_op);
     wr.wr.rdma.rkey = mstr_qp->rkey;
 
     ret = ibv_post_send(cb->conn_qp[0], &wr, &bad_send_wr);

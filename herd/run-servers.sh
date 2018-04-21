@@ -7,6 +7,7 @@ function blue() {
 
 export HRD_REGISTRY_IP="10.113.1.47"
 export MLX5_SINGLE_THREADED=1
+export MLX4_SINGLE_THREADED=1
 
 blue "Removing SHM key 24 (request region hugepages)"
 sudo ipcrm -M 24
@@ -18,8 +19,6 @@ for i in `seq 0 28`; do
 	key=`expr 4185 + $i`
 	sudo ipcrm -M $key 2>/dev/null
 done
-
-: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
 
 blue "Reset server QP registry"
 sudo killall memcached
@@ -38,10 +37,8 @@ sleep 1
 
 blue "Starting worker threads"
 sudo LD_LIBRARY_PATH=/usr/local/lib/ -E \
-	numactl --physcpubind=0,2,4,6,8,10,12,14,16,18,20,22,24,26 --membind=0 ./main \
+	numactl --cpunodebind=0 --membind=0 ./main \
 	--is-client 0 \
 	--base-port-index 0 \
 	--num-server-ports 2 \
 	--postlist 32 &
-
-#numactl --physcpubind=0,2,4,6,8,10,12,14 --membind=0 ./main \
