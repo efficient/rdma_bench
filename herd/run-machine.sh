@@ -7,6 +7,7 @@ function blue() {
 
 export HRD_REGISTRY_IP="10.113.1.47"
 export MLX5_SINGLE_THREADED=1
+export MLX4_SINGLE_THREADED=1
 
 if [ "$#" -ne 1 ]; then
     blue "Illegal number of parameters"
@@ -18,7 +19,6 @@ blue "Removing hugepages"
 shm-rm.sh 1>/dev/null 2>/dev/null
 
 num_threads=14		# Threads per client machine
-: ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
 
 blue "Running $num_threads client threads"
 
