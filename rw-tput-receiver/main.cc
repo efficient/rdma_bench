@@ -60,7 +60,7 @@ void run_server(thread_params_t* params) {
   hrd_publish_ready(srv_name);
   printf("main: Server %s READY\n", srv_name);
 
-  while (1) {
+  while (true) {
     printf("main: Server %s: %d\n", srv_name, cb->conn_buf[0]);
     sleep(1);
   }
@@ -100,8 +100,9 @@ void run_client(thread_params_t* params) {
     if (srv_qp == nullptr) usleep(200000);
   }
 
-  printf("main: Client %s found server! Connecting..\n", clt_name);
+  printf("main: Client %s found server. Connecting..\n", clt_name);
   hrd_connect_qp(cb, 0, srv_qp);
+  printf("main: Client %s connected!\n", clt_name);
 
   hrd_wait_till_ready(srv_name);
 
@@ -123,8 +124,8 @@ void run_client(thread_params_t* params) {
 
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
-  while (1) {
-    if (rolling_iter >= MB(4)) {
+  while (true) {
+    if (rolling_iter >= KB(512)) {
       clock_gettime(CLOCK_REALTIME, &end);
       double seconds = (end.tv_sec - start.tv_sec) +
                        (end.tv_nsec - start.tv_nsec) / 1000000000.0;
@@ -176,14 +177,15 @@ void run_client(thread_params_t* params) {
 
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-  assert(FLAGS_num_threads >= 1);
+  rt_assert(FLAGS_num_threads >= 1, "At least on thread needed");
 
   if (FLAGS_is_client == 1) {
-    if (FLAGS_do_read == 0) assert(FLAGS_size <= kHrdMaxInline);
-    assert(FLAGS_postlist >= 1 && FLAGS_postlist <= kAppMaxPostlist);
-
-    assert(kAppUnsigBatch >= FLAGS_postlist);   // Postlist check
-    assert(kHrdSQDepth >= 2 * kAppUnsigBatch);  // Queue capacity check
+    if (FLAGS_do_read == 0) {
+      rt_assert(FLAGS_size <= kHrdMaxInline, "Inline size too small");
+    }
+    rt_assert(FLAGS_postlist <= kAppMaxPostlist, "Postlist too large");
+    rt_assert(kAppUnsigBatch >= FLAGS_postlist, "Postlist check failed");
+    rt_assert(kHrdSQDepth >= 2 * kAppUnsigBatch, "Queue capacity check failed");
   }
 
   // Launch a single server thread or multiple client threads

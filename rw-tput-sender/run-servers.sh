@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source $(dirname $0)/../scripts/utils.sh
 source $(dirname $0)/../scripts/mlx_env.sh
-export HRD_REGISTRY_IP="fawn-pluto0"
+export HRD_REGISTRY_IP="10.10.1.1"
 
 drop_shm
 
@@ -16,7 +16,7 @@ blue "Starting $num_server_threads server threads"
 
 flags="
 	--num_threads $num_server_threads \
-	--dual_port 1 \
+	--dual_port 0 \
   --use_uc 0 \
 	--is_client 0 \
 	--size 64 \

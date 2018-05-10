@@ -20,4 +20,8 @@ These parameters are defined in `main.c`, `run-servers.sh`, and `run-machine.sh`
    `./run-machine.sh i`
 
 ## Connection logic
- * Each client thread establishes a connections with one server thread.
+ * Each client thread establishes a connection with one server thread.
+
+## Modifications to measure latency:
+ * `kAppUnsigBatch = 1`
+ * `postlist = 1`
