@@ -6,12 +6,12 @@
 #include "libhrd_cpp/hrd.h"
 
 DEFINE_uint64(is_client, 0, "Is this process a client?");
-static constexpr size_t kAppBufSize = 64;
+static constexpr size_t kAppBufSize = 8 * 1024 * 1024;
 
 void run_server() {
   struct hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
-  conn_config.use_uc = 0;
+  conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
   conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = 3185;
@@ -40,18 +40,15 @@ void run_server() {
   while (true) {
     size_t loc_1 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
     size_t loc_2 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
-
     if (loc_1 >= loc_2) continue;
     // Here, loc_1 < loc 2
 
-    size_t val_1 = ptr[loc_1];
-
+    size_t val_2 = ptr[loc_2];
     asm volatile("" ::: "memory");  // Compiler barrier
     asm volatile("lfence" ::: "memory");
     asm volatile("sfence" ::: "memory");
     asm volatile("mfence" ::: "memory");  // Hardware barrier
-
-    size_t val_2 = ptr[loc_2];
+    size_t val_1 = ptr[loc_1];
 
     if (val_2 > val_1) {
       printf("violation %zu %zu %zu %zu\n", loc_1, loc_2, val_1, val_2);
@@ -65,7 +62,7 @@ void run_server() {
 void run_client() {
   hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
-  conn_config.use_uc = 0;
+  conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
   conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = 3185;
