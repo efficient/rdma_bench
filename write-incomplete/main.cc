@@ -53,7 +53,6 @@ void run_server() {
     size_t actual = ptr[0];
     if (actual < _expected) {
       printf("violation: actual = %zu, expected = %zu\n", actual, _expected);
-      usleep(1);
     }
   }
 }
