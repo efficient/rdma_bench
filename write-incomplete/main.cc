@@ -6,8 +6,8 @@
 #include "libhrd_cpp/hrd.h"
 
 /// The value of counter is x iff the client has completed writing x to the
-/// server's memory.
-std::atomic<size_t> counter;
+/// server's memory. This is shared between the client and server.
+std::atomic<size_t> shared_counter;
 
 /// The client and server ports must be on different NICs for the
 /// proof-of-concept to work.
@@ -44,15 +44,16 @@ void run_server() {
   // Start real work
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
   while (true) {
-    size_t _expected = counter;  // The client has completed writing @expected
+    size_t minimum_allowed = shared_counter;
 
     asm volatile("" ::: "memory");        // Compiler barrier
     asm volatile("mfence" ::: "memory");  // Hardware barrier
 
     // Check if the client's write is actually visible
     size_t actual = ptr[0];
-    if (actual < _expected) {
-      printf("violation: actual = %zu, expected = %zu\n", actual, _expected);
+    if (actual < minimum_allowed) {
+      printf("violation: actual = %zu, minimum_allowed = %zu\n", actual,
+             minimum_allowed);
     }
   }
 }
@@ -91,7 +92,7 @@ void run_client() {
 
   auto* ptr = reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
   while (true) {
-    ptr[0] = counter + 1;  // We'll update the counter with an RDMA write
+    ptr[0] = shared_counter + 1;
 
     sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
     sge.length = sizeof(size_t);
@@ -112,12 +113,12 @@ void run_client() {
     asm volatile("" ::: "memory");        // Compiler barrier
     asm volatile("mfence" ::: "memory");  // Hardware barrier
 
-    counter++;  // The RDMA write is complete, so the server must see new value
+    shared_counter++;  // The RDMA write is complete, so server must see update
   }
 }
 
 int main() {
-  counter = 0;
+  shared_counter = 0;
 
   auto thread_server = std::thread(run_server);
   auto thread_client = std::thread(run_client);
