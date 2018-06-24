@@ -89,7 +89,7 @@ void run_client() {
 
   auto* ptr = reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
   while (true) {
-    ptr[0] = counter + 1;  // Bump the counter in the server's memory
+    ptr[0] = counter + 1;  // We'll update the counter with an RDMA write
 
     sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
     sge.length = sizeof(size_t);
