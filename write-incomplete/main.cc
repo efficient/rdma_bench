@@ -7,9 +7,11 @@
 #include "libhrd_cpp/hrd.h"
 
 std::atomic<size_t> counter;
+static size_t kClientRDMAPort = 0;
+static size_t kServerRDMAPort = 1;
 
 static void barrier() {
-  asm volatile("" ::: "memory");  // Compiler barrier
+  asm volatile("" ::: "memory");        // Compiler barrier
   asm volatile("mfence" ::: "memory");  // Hardware barrier
 }
 
@@ -21,8 +23,8 @@ void run_server() {
   conn_config.buf_size = sizeof(size_t);
   conn_config.buf_shm_key = -1;
 
-  auto* cb = hrd_ctrl_blk_init(0 /* id */, 1 /* port */, kHrdInvalidNUMANode,
-                               &conn_config, nullptr /* dgram config */);
+  auto* cb = hrd_ctrl_blk_init(0 /* id */, kServerRDMAPort, kHrdInvalidNUMANode,
+                               &conn_config, nullptr /* datagram config */);
   memset(const_cast<uint8_t*>(cb->conn_buf), 0, sizeof(size_t));
 
   hrd_publish_conn_qp(cb, 0, "server");
@@ -61,8 +63,8 @@ void run_client() {
   conn_config.buf_size = sizeof(size_t);
   conn_config.buf_shm_key = -1;
 
-  auto* cb = hrd_ctrl_blk_init(1 /* id */, 0 /* port */, kHrdInvalidNUMANode,
-                               &conn_config, nullptr /* dgram config */);
+  auto* cb = hrd_ctrl_blk_init(1 /* id */, kClientRDMAPort, kHrdInvalidNUMANode,
+                               &conn_config, nullptr /* datagram config */);
 
   hrd_publish_conn_qp(cb, 0, "client");
   printf("main: Client published. Waiting for server.\n");
