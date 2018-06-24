@@ -1,1 +1,1 @@
-This shows that single-packet RDMA writes don't obey left-to-right ordering.
+Stress test for left-to-write ordering of RDMA writes.
