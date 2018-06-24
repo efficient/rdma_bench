@@ -1,56 +1,56 @@
-#include <getopt.h>
-#include "hrd.h"
+#include <gflags/gflags.h>
+#include <stdlib.h>
+#include <string.h>
+#include <thread>
+#include <vector>
+#include "libhrd_cpp/hrd.h"
 
-#define BUF_SIZE 8192
-#define CACHELINE_SIZE 64
-#define MAX_POSTLIST 64
-#define MAX_SERVERS 64
+static constexpr size_t kAppBufSize = 8192;
+static constexpr size_t kAppMaxPostlist = 64;
+static constexpr size_t kAppMaxServers = 64;
+static constexpr size_t kAppNumLatencySamples = (1024 * 1024);
+static constexpr size_t kAppUsePostlist = 1;
 
-#define NUM_LATENCY_SAMPLES (1024 * 1024)
-#define USE_POSTLIST 1
+DEFINE_uint64(num_threads, 0, "Number of threads");
+DEFINE_uint64(is_client, 0, "Is this process a client?");
+DEFINE_uint64(dual_port, 0, "Use two ports?");
+DEFINE_uint64(use_uc, 0, "Use unreliable connected transport?");
+DEFINE_uint64(do_read, 0, "Do RDMA reads?");
+DEFINE_uint64(machine_id, 0, "ID of this machine");
+DEFINE_uint64(size, 0, "RDMA size");
+DEFINE_uint64(postlist, 0, "Postlist size");
 
-struct thread_params {
-  int num_threads; /* Number of threads launched on this machine */
+struct thread_params_t {
   int id;
-  int dual_port;
-  int use_uc;
-  int size;
-  int postlist;
-  int do_read;
 };
 
-int cmpfunc(const void* a, const void* b) {
-  double a_d = *(double*)a;
-  double b_d = *(double*)b;
-
-  if (a_d > b_d) {
-    return 1;
-  } else if (a_d < b_d) {
-    return -1;
-  } else {
-    return 0;
-  }
-}
-
 void analyse(double* latency_samples) {
-  int i;
   double average_latency = 0;
-  for (i = 0; i < NUM_LATENCY_SAMPLES; i++) {
+  for (size_t i = 0; i < kAppNumLatencySamples; i++) {
     average_latency += latency_samples[i];
   }
-  average_latency /= NUM_LATENCY_SAMPLES;
+  average_latency /= kAppNumLatencySamples;
 
-  qsort(latency_samples, NUM_LATENCY_SAMPLES, sizeof(double), cmpfunc);
+  qsort(latency_samples, kAppNumLatencySamples, sizeof(double), cmpfunc);
   printf("Average latency = %.2fus, median = %.2fus, 99th = %.2fus\n",
-         average_latency, latency_samples[NUM_LATENCY_SAMPLES / 2],
-         latency_samples[(NUM_LATENCY_SAMPLES * 99) / 100]);
+         average_latency, latency_samples[kAppNumLatencySamples / 2],
+         latency_samples[(kAppNumLatencySamples * 99) / 100]);
 }
 
-void* run_server(void* arg) {
-  struct thread_params params = *(struct thread_params*)arg;
-  int srv_gid = params.id; /* Global ID of this server thread */
-  int clt_gid = srv_gid;   /* One-to-one connections */
-  int ib_port_index = params.dual_port == 0 ? 0 : srv_gid % 2;
+void run_server(thread_params_t* params) {
+  int srv_gid = params->id; /* Global ID of this server thread */
+  size_t clt_gid = srv_gid; /* One-to-one connections */
+  size_t ib_port_index = FLAGS_dual_port == 0 ? 0 : srv_gid % 2;
+
+  struct hrd_conn_config_t conn_config;
+  conn_config.num_qps = 1;
+  conn_config.use_uc = (FLAGS_use_uc == 1);
+  conn_config.prealloc_buf = nullptr;
+  conn_config.buf_size = kAppBufSize;
+  conn_config.buf_shm_key = -1;
+
+  auto* cb = hrd_ctrl_blk_init(srv_gid, ib_port_index, kHrdInvalidNUMANode,
+                               &conn_config, nullptr);
 
   struct hrd_ctrl_blk* cb =
       hrd_ctrl_blk_init(srv_gid,            /* local_hid */
@@ -61,14 +61,14 @@ void* run_server(void* arg) {
 
   memset((void*)cb->conn_buf, (uint8_t)srv_gid + 1, BUF_SIZE);
 
-  char srv_name[HRD_QP_NAME_SIZE];
+  char srv_name[kHrdQPNameSize];
   sprintf(srv_name, "server-%d", srv_gid);
   hrd_publish_conn_qp(cb, 0, srv_name);
 
   printf("main: Server %d published. Waiting for client %d\n", srv_gid,
          clt_gid);
 
-  char clt_name[HRD_QP_NAME_SIZE];
+  char clt_name[kHrdQPNameSize];
   struct hrd_qp_attr* clt_qp = NULL;
   sprintf(clt_name, "client-%d", clt_gid);
 
@@ -88,26 +88,23 @@ void* run_server(void* arg) {
   struct ibv_sge sgl[MAX_POSTLIST];
   struct ibv_wc wc;
   long long nb_tx = 0;
-  int w_i = 0; /* Window index */
-  int ret;
+  size_t w_i = 0; /* Window index */
+  size_t ret;
 
-  /*
-   * The reads/writes at different postlist positions should be done to/from
-   * different cache lines.
-   */
-  int offset = CACHELINE_SIZE;
+  // The reads/writes at different postlist positions should be done to/from
+  // different cache lines.
+  size_t offset = CACHELINE_SIZE;
   while (offset < params.size) {
     offset += CACHELINE_SIZE;
   }
   assert(offset * params.postlist <= BUF_SIZE);
 
-  int opcode = params.do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
+  auto opcode = params.do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
   struct timespec start, end;
   clock_gettime(CLOCK_REALTIME, &start);
-  double* latency_samples =
-      (double*)malloc(NUM_LATENCY_SAMPLES * sizeof(double));
-  int lat_i = 0; /* Latency sample index */
+  auto* latency_samples = new double[kAppNumLatencySamples];
+  size_t lat_i = 0; /* Latency sample index */
 
   while (1) {
     if (lat_i == NUM_LATENCY_SAMPLES) {
@@ -167,9 +164,9 @@ void* run_server(void* arg) {
 
 void* run_client(void* arg) {
   struct thread_params params = *(struct thread_params*)arg;
-  int clt_gid = params.id; /* Global ID of this server thread */
-  int srv_gid = clt_gid;   /* One-to-one connections */
-  int ib_port_index = params.dual_port == 0 ? 0 : srv_gid % 2;
+  size_t clt_gid = params.id; /* Global ID of this server thread */
+  size_t srv_gid = clt_gid;   /* One-to-one connections */
+  size_t ib_port_index = params.dual_port == 0 ? 0 : srv_gid % 2;
 
   struct hrd_ctrl_blk* cb = hrd_ctrl_blk_init(
       clt_gid,            /* local_hid */
@@ -178,10 +175,10 @@ void* run_client(void* arg) {
       NULL, BUF_SIZE, -1, /* prealloc conn buf, buf size, key */
       0, 0, -1);          /* #dgram qps, buf size, shm key */
 
-  char srv_name[HRD_QP_NAME_SIZE];
+  char srv_name[kHrdQPNameSize];
   sprintf(srv_name, "server-%d", srv_gid);
 
-  char clt_name[HRD_QP_NAME_SIZE];
+  char clt_name[kHrdQPNameSize];
   sprintf(clt_name, "client-%d", clt_gid);
   hrd_publish_conn_qp(cb, 0, clt_name);
 

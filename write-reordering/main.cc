@@ -60,7 +60,7 @@ void run_server() {
 
     if (val_2 > val_1) {
       printf("violation %zu %zu %zu %zu\n", loc_1, loc_2, val_1, val_2);
-    } else {
+    } else if (val_2 < val_1) {
       // printf("ok\n");
     }
   }
@@ -97,11 +97,13 @@ void run_client() {
   struct ibv_wc wc;
   size_t ctr = 0;
 
+  auto* ptr = reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
   while (true) {
-    auto* ptr = reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
+    // RDMA write an array with all 8-byte words = ctr
     for (size_t i = 0; i < kAppBufSize / sizeof(size_t); i++) {
       ptr[i] = ctr;
     }
+
     ctr++;
 
     // Post a batch
@@ -121,7 +123,7 @@ void run_client() {
 
     int ret = ibv_post_send(cb->conn_qp[0], &wr, &bad_send_wr);
     rt_assert(ret == 0);
-    hrd_poll_cq(cb->conn_cq[0], 1, &wc);
+    hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA write completes
   }
 }
 
