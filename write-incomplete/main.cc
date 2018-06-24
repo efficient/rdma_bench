@@ -5,7 +5,10 @@
 #include <vector>
 #include "libhrd_cpp/hrd.h"
 
+/// The value of counter is x iff the client has completed writing x to the
+/// server's memory.
 std::atomic<size_t> counter;
+
 static size_t kClientRDMAPort = 0;
 static size_t kServerRDMAPort = 1;
 
@@ -44,10 +47,11 @@ void run_server() {
   // Start real work
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
   while (true) {
-    size_t _expected = counter;
+    size_t _expected = counter;  // The client has completed writing @expected
     barrier();
-    size_t actual = ptr[0];
 
+    // Check if the client's write is actually visible
+    size_t actual = ptr[0];
     if (actual < _expected) {
       printf("violation: actual = %zu, expected = %zu\n", actual, _expected);
       usleep(1);
