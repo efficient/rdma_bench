@@ -36,7 +36,7 @@ void run_server() {
     if (clt_qp == nullptr) usleep(200000);
   }
 
-  printf("main: Server %s found client! Connecting..\n", "server");
+  printf("main: Server found client! Connecting..\n");
   hrd_connect_qp(cb, 0, clt_qp);
   hrd_publish_ready("server");
   printf("main: Server ready\n");
