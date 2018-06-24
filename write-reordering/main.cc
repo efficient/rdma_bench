@@ -7,7 +7,7 @@
 
 DEFINE_uint64(is_client, 0, "Is this process a client?");
 
-static constexpr size_t kAppBufSize = 1000;
+static constexpr size_t kAppBufSize = 64;
 
 static void memory_barrier() { asm volatile("" ::: "memory"); }
 static void lfence() { asm volatile("lfence" ::: "memory"); }
@@ -25,27 +25,21 @@ void run_server() {
   auto* cb = hrd_ctrl_blk_init(0 /* id */, 0 /* port */, 0 /* numa */,
                                &conn_config, nullptr /* dgram config */);
 
-  char srv_name[kHrdQPNameSize];
-  sprintf(srv_name, "server");
-  char clt_name[kHrdQPNameSize];
-  sprintf(clt_name, "client");
-
-  hrd_publish_conn_qp(cb, 0, srv_name);
-  printf("main: Server %s published. Waiting for client %s\n", srv_name,
-         clt_name);
+  hrd_publish_conn_qp(cb, 0, "server");
+  printf("main: Server published. Waiting for client.\n");
 
   hrd_qp_attr_t* clt_qp = nullptr;
   while (clt_qp == nullptr) {
-    clt_qp = hrd_get_published_qp(clt_name);
+    clt_qp = hrd_get_published_qp("client");
     if (clt_qp == nullptr) usleep(200000);
   }
 
-  printf("main: Server %s found client! Connecting..\n", srv_name);
+  printf("main: Server %s found client! Connecting..\n", "server");
   hrd_connect_qp(cb, 0, clt_qp);
 
   // This garbles the server's qp_attr - which is safe
-  hrd_publish_ready(srv_name);
-  printf("main: Server %s READY\n", srv_name);
+  hrd_publish_ready("server");
+  printf("main: Server ready\n");
 
   uint64_t seed = 0xdeadbeef;
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
@@ -83,26 +77,20 @@ void run_client() {
   auto* cb = hrd_ctrl_blk_init(0 /* id */, 0 /* port */, 0 /* numa */,
                                &conn_config, nullptr /* dgram config */);
 
-  char srv_name[kHrdQPNameSize];
-  sprintf(srv_name, "server");
-  char clt_name[kHrdQPNameSize];
-  sprintf(clt_name, "client");
-
-  hrd_publish_conn_qp(cb, 0, clt_name);
-  printf("main: Client %s published. Waiting for server %s\n", clt_name,
-         srv_name);
+  hrd_publish_conn_qp(cb, 0, "client");
+  printf("main: Client published. Waiting for server.\n");
 
   hrd_qp_attr_t* srv_qp = nullptr;
   while (srv_qp == nullptr) {
-    srv_qp = hrd_get_published_qp(srv_name);
+    srv_qp = hrd_get_published_qp("server");
     if (srv_qp == nullptr) usleep(200000);
   }
 
-  printf("main: Client %s found server. Connecting..\n", clt_name);
+  printf("main: Client found server. Connecting..\n");
   hrd_connect_qp(cb, 0, srv_qp);
-  printf("main: Client %s connected!\n", clt_name);
+  printf("main: Client connected!\n");
 
-  hrd_wait_till_ready(srv_name);
+  hrd_wait_till_ready("server");
 
   struct ibv_send_wr wr, *bad_send_wr;
   struct ibv_sge sge;
