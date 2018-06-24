@@ -9,11 +9,6 @@ DEFINE_uint64(is_client, 0, "Is this process a client?");
 
 static constexpr size_t kAppBufSize = 64;
 
-static void memory_barrier() { asm volatile("" ::: "memory"); }
-static void lfence() { asm volatile("lfence" ::: "memory"); }
-static void sfence() { asm volatile("sfence" ::: "memory"); }
-static void mfence() { asm volatile("mfence" ::: "memory"); }
-
 void run_server() {
   struct hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
@@ -52,14 +47,17 @@ void run_server() {
     // Here, loc_1 < loc 2
 
     size_t val_1 = ptr[loc_1];
-    memory_barrier();
-    lfence();
-    sfence();
-    mfence();
+
+    asm volatile("" ::: "memory");
+    asm volatile("lfence" ::: "memory");
+    asm volatile("sfence" ::: "memory");
+    asm volatile("mfence" ::: "memory");
+
     size_t val_2 = ptr[loc_2];
 
     if (val_2 > val_1) {
       printf("violation %zu %zu %zu %zu\n", loc_1, loc_2, val_1, val_2);
+      rt_assert(val_2 == val_1 + 1);  // This is expected to fail eventually
     } else if (val_2 < val_1) {
       // printf("ok\n");
     }
