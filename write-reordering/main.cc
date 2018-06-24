@@ -48,20 +48,22 @@ void run_server() {
   printf("main: Server %s READY\n", srv_name);
 
   uint64_t seed = 0xdeadbeef;
+  auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
 
   while (true) {
     size_t loc_1 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
     size_t loc_2 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
 
     if (loc_1 >= loc_2) continue;
+    // Here, loc_1 < loc 2
 
-    auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
     size_t val_1 = ptr[loc_1];
     memory_barrier();
     lfence();
     sfence();
     mfence();
     size_t val_2 = ptr[loc_2];
+
     if (val_2 > val_1) {
       printf("violation %zu %zu %zu %zu\n", loc_1, loc_2, val_1, val_2);
     } else {
