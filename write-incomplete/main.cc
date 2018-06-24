@@ -16,6 +16,7 @@ static void barrier() {
 }
 
 void run_server() {
+  // Establish a QP with the client
   struct hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
   conn_config.use_uc = false;
@@ -41,21 +42,22 @@ void run_server() {
   hrd_publish_ready("server");
   printf("main: Server ready\n");
 
+  // Start real work
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
-
   while (true) {
     size_t _expected = counter;
     barrier();
     size_t actual = ptr[0];
 
     if (actual < _expected) {
-      printf("actual = %zu, expected = %zu\n", actual, _expected);
+      printf("violation: actual = %zu, expected = %zu\n", actual, _expected);
       usleep(1);
     }
   }
 }
 
 void run_client() {
+  // Establish a QP with the server
   hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
   conn_config.use_uc = false;
@@ -81,6 +83,7 @@ void run_client() {
 
   hrd_wait_till_ready("server");
 
+  // Start real work
   struct ibv_send_wr wr, *bad_send_wr;
   struct ibv_sge sge;
   struct ibv_wc wc;
