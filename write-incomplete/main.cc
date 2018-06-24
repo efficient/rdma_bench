@@ -14,11 +14,6 @@ std::atomic<size_t> counter;
 static size_t kClientRDMAPort = 0;
 static size_t kServerRDMAPort = 1;
 
-static void barrier() {
-  asm volatile("" ::: "memory");        // Compiler barrier
-  asm volatile("mfence" ::: "memory");  // Hardware barrier
-}
-
 void run_server() {
   // Establish a QP with the client
   struct hrd_conn_config_t conn_config;
@@ -50,7 +45,9 @@ void run_server() {
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
   while (true) {
     size_t _expected = counter;  // The client has completed writing @expected
-    barrier();
+
+    asm volatile("" ::: "memory");        // Compiler barrier
+    asm volatile("mfence" ::: "memory");  // Hardware barrier
 
     // Check if the client's write is actually visible
     size_t actual = ptr[0];
@@ -113,7 +110,9 @@ void run_client() {
     rt_assert(ret == 0);
     hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA write completes
 
-    barrier();
+    asm volatile("" ::: "memory");        // Compiler barrier
+    asm volatile("mfence" ::: "memory");  // Hardware barrier
+
     counter++;  // The RDMA write is complete, so the server must see new value
   }
 }
