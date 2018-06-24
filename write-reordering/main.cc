@@ -6,7 +6,6 @@
 #include "libhrd_cpp/hrd.h"
 
 DEFINE_uint64(is_client, 0, "Is this process a client?");
-
 static constexpr size_t kAppBufSize = 64;
 
 void run_server() {
@@ -31,8 +30,6 @@ void run_server() {
 
   printf("main: Server %s found client! Connecting..\n", "server");
   hrd_connect_qp(cb, 0, clt_qp);
-
-  // This garbles the server's qp_attr - which is safe
   hrd_publish_ready("server");
   printf("main: Server ready\n");
 
@@ -104,7 +101,6 @@ void run_client() {
 
     ctr++;
 
-    // Post a batch
     wr.opcode = IBV_WR_RDMA_WRITE;
     wr.num_sge = 1;
     wr.next = nullptr;
