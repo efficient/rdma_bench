@@ -48,10 +48,10 @@ void run_server() {
 
     size_t val_1 = ptr[loc_1];
 
-    asm volatile("" ::: "memory");
+    asm volatile("" ::: "memory");  // Compiler barrier
     asm volatile("lfence" ::: "memory");
     asm volatile("sfence" ::: "memory");
-    asm volatile("mfence" ::: "memory");
+    asm volatile("mfence" ::: "memory");  // Hardware barrier
 
     size_t val_2 = ptr[loc_2];
 
