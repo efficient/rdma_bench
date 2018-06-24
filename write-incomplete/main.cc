@@ -9,6 +9,8 @@
 /// server's memory.
 std::atomic<size_t> counter;
 
+/// The client and server ports must be on different NICs for the
+/// proof-of-concept to work.
 static size_t kClientRDMAPort = 0;
 static size_t kServerRDMAPort = 1;
 
