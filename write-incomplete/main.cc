@@ -6,8 +6,7 @@
 #include <vector>
 #include "libhrd_cpp/hrd.h"
 
-static constexpr size_t kAppBufSize = 8;
-std::atomic<size_t> expected;
+std::atomic<size_t> counter;
 
 static void barrier() {
   asm volatile("" ::: "memory");  // Compiler barrier
@@ -19,12 +18,12 @@ void run_server() {
   conn_config.num_qps = 1;
   conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
-  conn_config.buf_size = kAppBufSize;
-  conn_config.buf_shm_key = 3185;
+  conn_config.buf_size = sizeof(size_t);
+  conn_config.buf_shm_key = -1;
 
-  auto* cb = hrd_ctrl_blk_init(0 /* id */, 1 /* port */, 0 /* numa */,
+  auto* cb = hrd_ctrl_blk_init(0 /* id */, 1 /* port */, kHrdInvalidNUMANode,
                                &conn_config, nullptr /* dgram config */);
-  memset(const_cast<uint8_t*>(cb->conn_buf), 0, kAppBufSize);
+  memset(const_cast<uint8_t*>(cb->conn_buf), 0, sizeof(size_t));
 
   hrd_publish_conn_qp(cb, 0, "server");
   printf("main: Server published. Waiting for client.\n");
@@ -40,16 +39,15 @@ void run_server() {
   hrd_publish_ready("server");
   printf("main: Server ready\n");
 
-  uint64_t seed = 0xdeadbeef;
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
 
   while (true) {
-    size_t loc = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
-    size_t _expected = expected;
+    size_t _expected = counter;
     barrier();
-    size_t val = ptr[loc];
-    if (val < _expected) {
-      printf("value = %zu, expected = %zu\n", val, _expected);
+    size_t actual = ptr[0];
+
+    if (actual < _expected) {
+      printf("actual = %zu, expected = %zu\n", actual, _expected);
       usleep(1);
     }
   }
@@ -60,10 +58,10 @@ void run_client() {
   conn_config.num_qps = 1;
   conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
-  conn_config.buf_size = kAppBufSize;
-  conn_config.buf_shm_key = 3186;
+  conn_config.buf_size = sizeof(size_t);
+  conn_config.buf_shm_key = -1;
 
-  auto* cb = hrd_ctrl_blk_init(1 /* id */, 0 /* port */, 0 /* numa */,
+  auto* cb = hrd_ctrl_blk_init(1 /* id */, 0 /* port */, kHrdInvalidNUMANode,
                                &conn_config, nullptr /* dgram config */);
 
   hrd_publish_conn_qp(cb, 0, "client");
@@ -84,17 +82,13 @@ void run_client() {
   struct ibv_send_wr wr, *bad_send_wr;
   struct ibv_sge sge;
   struct ibv_wc wc;
-  size_t ctr = 0;
 
   auto* ptr = reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
   while (true) {
-    ctr++;
-
-    // RDMA write an array with all 8-byte words = ctr
-    for (size_t i = 0; i < kAppBufSize / sizeof(size_t); i++) ptr[i] = ctr;
+    ptr[0] = counter + 1;  // Bump the counter in the server's memory
 
     sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
-    sge.length = kAppBufSize;
+    sge.length = sizeof(size_t);
     sge.lkey = cb->conn_buf_mr->lkey;
 
     wr.opcode = IBV_WR_RDMA_WRITE;
@@ -110,12 +104,12 @@ void run_client() {
     hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA write completes
 
     barrier();
-    expected = ctr;  // Update the value that the server should see
+    counter++;  // The RDMA write is complete, so the server must see new value
   }
 }
 
 int main(int argc, char* argv[]) {
-  expected = 0;
+  counter = 0;
 
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   auto thread_server = std::thread(run_server);
