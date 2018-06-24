@@ -1,4 +1,3 @@
-#include <gflags/gflags.h>
 #include <stdlib.h>
 #include <string.h>
 #include <atomic>
@@ -113,10 +112,9 @@ void run_client() {
   }
 }
 
-int main(int argc, char* argv[]) {
+int main() {
   counter = 0;
 
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
   auto thread_server = std::thread(run_server);
   auto thread_client = std::thread(run_client);
 
