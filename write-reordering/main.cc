@@ -18,6 +18,7 @@ void run_server() {
 
   auto* cb = hrd_ctrl_blk_init(0 /* id */, 0 /* port */, 0 /* numa */,
                                &conn_config, nullptr /* dgram config */);
+  memset(const_cast<uint8_t*>(cb->conn_buf), 0, kAppBufSize);
 
   hrd_publish_conn_qp(cb, 0, "server");
   printf("main: Server published. Waiting for client.\n");
@@ -78,7 +79,7 @@ void run_client() {
   hrd_qp_attr_t* srv_qp = nullptr;
   while (srv_qp == nullptr) {
     srv_qp = hrd_get_published_qp("server");
-    if (srv_qp == nullptr) usleep(200000);
+    if (srv_qp == nullptr) usleep(2000);
   }
 
   printf("main: Client found server. Connecting..\n");
@@ -94,24 +95,20 @@ void run_client() {
 
   auto* ptr = reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
   while (true) {
-    // RDMA write an array with all 8-byte words = ctr
-    for (size_t i = 0; i < kAppBufSize / sizeof(size_t); i++) {
-      ptr[i] = ctr;
-    }
-
     ctr++;
 
-    wr.opcode = IBV_WR_RDMA_WRITE;
-    wr.num_sge = 1;
-    wr.next = nullptr;
-    wr.sg_list = &sge;
-
-    wr.send_flags = IBV_SEND_SIGNALED;
+    // RDMA write an array with all 8-byte words = ctr
+    for (size_t i = 0; i < kAppBufSize / sizeof(size_t); i++) ptr[i] = ctr;
 
     sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
     sge.length = kAppBufSize;
     sge.lkey = cb->conn_buf_mr->lkey;
 
+    wr.opcode = IBV_WR_RDMA_WRITE;
+    wr.num_sge = 1;
+    wr.next = nullptr;
+    wr.sg_list = &sge;
+    wr.send_flags = IBV_SEND_SIGNALED;
     wr.wr.rdma.remote_addr = srv_qp->buf_addr;
     wr.wr.rdma.rkey = srv_qp->rkey;
 
@@ -123,12 +120,6 @@ void run_client() {
 
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
-
-  if (FLAGS_is_client == 1) {
-    run_client();
-  } else {
-    run_server();
-  }
-
+  FLAGS_is_client == 1 ? run_client() : run_server();
   return 0;
 }
