@@ -9,6 +9,11 @@
 static constexpr size_t kAppBufSize = 8;
 std::atomic<size_t> expected;
 
+static void barrier() {
+  asm volatile("" ::: "memory");  // Compiler barrier
+  asm volatile("mfence" ::: "memory");  // Hardware barrier
+}
+
 void run_server() {
   struct hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
@@ -17,7 +22,7 @@ void run_server() {
   conn_config.buf_size = kAppBufSize;
   conn_config.buf_shm_key = 3185;
 
-  auto* cb = hrd_ctrl_blk_init(0 /* id */, 0 /* port */, 0 /* numa */,
+  auto* cb = hrd_ctrl_blk_init(0 /* id */, 1 /* port */, 0 /* numa */,
                                &conn_config, nullptr /* dgram config */);
   memset(const_cast<uint8_t*>(cb->conn_buf), 0, kAppBufSize);
 
@@ -40,8 +45,9 @@ void run_server() {
 
   while (true) {
     size_t loc = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
-    size_t val = ptr[loc];
     size_t _expected = expected;
+    barrier();
+    size_t val = ptr[loc];
     if (val < _expected) {
       printf("value = %zu, expected = %zu\n", val, _expected);
       usleep(1);
@@ -103,7 +109,8 @@ void run_client() {
     rt_assert(ret == 0);
     hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA write completes
 
-    expected = ctr;
+    barrier();
+    expected = ctr;  // Update the value that the server should see
   }
 }
 
