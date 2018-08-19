@@ -237,7 +237,10 @@ void hrd_create_dgram_qps(hrd_ctrl_blk_t* cb) {
 
     cb->dgram_send_cq[i] = ibv_exp_create_cq(
         cb->resolve.ib_ctx, kHrdSQDepth, nullptr, nullptr, 0, &cq_init_attr);
-    rt_assert(cb->dgram_send_cq[i] != nullptr, "Failed to create SEND CQ");
+
+    // We sometimes set Mellanox env variables for hugepage-backed queues.
+    rt_assert(cb->dgram_send_cq[i] != nullptr,
+              "Failed to create SEND CQ. Check hugepages and SHM limits?");
 
     size_t recv_queue_depth = (i == 0) ? kHrdRQDepth : 1;
     cb->dgram_recv_cq[i] =
@@ -308,7 +311,9 @@ void hrd_create_conn_qps(hrd_ctrl_blk_t* cb) {
   for (size_t i = 0; i < cb->conn_config.num_qps; i++) {
     cb->conn_cq[i] = ibv_create_cq(cb->resolve.ib_ctx, cb->conn_config.sq_depth,
                                    nullptr, nullptr, 0);
-    rt_assert(cb->conn_cq[i] != nullptr, "Failed to create conn CQ");
+    // We sometimes set Mellanox env variables for hugepage-backed queues.
+    rt_assert(cb->conn_cq[i] != nullptr,
+              "Failed to create conn CQ. Check hugepages and SHM limits?");
 
 #if (kHrdMlx5Atomics == false)
     struct ibv_qp_init_attr create_attr;
