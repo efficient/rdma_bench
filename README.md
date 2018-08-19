@@ -19,10 +19,12 @@ benchmark is contained in one directory.
  * Modify `HRD_REGISTRY_IP` in `run-servers.sh` and `run-machines.sh` to the IP
    address of the server machine. The server runs a memcached instance that is
    used as a queue pair registry.
- * Allocate hugepages on all machines, and set unlimited SHM limits. On Linux
-   systems, hugepages can be allocated using:
+ * Allocate hugepages on all machines, and set unlimited SHM limits:
 ```	
 	sudo echo 8192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+  sudo bash -c "echo kernel.shmmax = 9223372036854775807 >> /etc/sysctl.conf"
+  sudo bash -c "echo kernel.shmall = 1152921504606846720 >> /etc/sysctl.conf"
+  sudo sysctl -p /etc/sysctl.conf
 ```
    
 ## Benchmark description
