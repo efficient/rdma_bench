@@ -19,10 +19,8 @@ benchmark is contained in one directory.
  * Modify `HRD_REGISTRY_IP` in `run-servers.sh` and `run-machines.sh` to the IP
    address of the server machine. The server runs a memcached instance that is
    used as a queue pair registry.
- * Allocate hugepages on the NIC's socket at the server machine. On our machines,
-   the NIC is attached to socket 0, so all benchmark scripts bind allocated
-   memory and threads to socket 0. On Ubuntu systems, create 8192 hugepages on
-   socket 0 using:
+ * Allocate hugepages on all machines, and set unlimited SHM limits. On Linux
+   systems, hugepages can be allocated using:
 ```	
 	sudo echo 8192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
 ```
