@@ -29,7 +29,7 @@ benchmark is contained in one directory.
    
 ## Benchmark description
 The benchmarks used in the paper are described below. This repository contains
-a few other benchmarks as well.
+other benchmarks as well.
 
 | Benchmark | Description |
 | ------------- | ------------- |
@@ -46,6 +46,9 @@ a few other benchmarks as well.
 | `ud-receiver` | Microbenchmark to measure throughput of inbound SENDs. |
 | | |
 | `rw-allsig` | WQE cache misses for outbound READs and WRITEs. |
+| | |
+| `write-incomplete` | This PoC shows that a completed WRITE can be invisible to the remote CPU. |
+| `write-reordering` | A test for left-to-right ordering of WRITEs. |
 
 
 ## Implementation details
