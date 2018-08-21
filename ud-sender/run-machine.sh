@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 source $(dirname $0)/../scripts/utils.sh
 source $(dirname $0)/../scripts/mlx_env.sh
-export HRD_REGISTRY_IP="fawn-pluto0"
+#export HRD_REGISTRY_IP="fawn-pluto0"
+export HRD_REGISTRY_IP="akalianode-1.rdma.fawn.apt.emulab.net"
 
 drop_shm
 
@@ -9,7 +10,7 @@ drop_shm
 executable="../build/ud-sender"
 chmod +x $executable
 
-num_threads=11			# Threads per client machine
+num_threads=1			# Threads per client machine
 blue "Running $num_threads client threads"
 
 # Check number of arguments
@@ -27,7 +28,7 @@ fi
 
 flags="\
   --num_threads $num_threads \
-	--dual_port 1 \
+	--dual_port 0 \
 	--is_client 1 \
 	--machine_id $1
 "

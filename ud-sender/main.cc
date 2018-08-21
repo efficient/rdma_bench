@@ -4,7 +4,7 @@
 #include <thread>
 #include "libhrd_cpp/hrd.h"
 
-static constexpr size_t kAppNumClients = 32;
+static constexpr size_t kAppNumClients = 1;
 static_assert(is_power_of_two(kAppNumClients), "");
 
 static constexpr size_t kAppNumQPs = 1;
