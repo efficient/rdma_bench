@@ -1,4 +1,3 @@
-#include <gflags/gflags.h>
 #include <stdlib.h>
 #include <string.h>
 #include <atomic>
@@ -6,14 +5,14 @@
 #include <vector>
 #include "libhrd_cpp/hrd.h"
 
-std::atomic<size_t> counter;
+/// The value of counter is x iff the client has completed writing x to the
+/// server's memory. This is shared between the client and server.
+std::atomic<size_t> shared_counter;
+
+/// The client and server ports must be on different NICs for the
+/// proof-of-concept to work.
 static size_t kClientRDMAPort = 0;
 static size_t kServerRDMAPort = 1;
-
-static void barrier() {
-  asm volatile("" ::: "memory");        // Compiler barrier
-  asm volatile("mfence" ::: "memory");  // Hardware barrier
-}
 
 void run_server() {
   // Establish a QP with the client
@@ -37,7 +36,7 @@ void run_server() {
     if (clt_qp == nullptr) usleep(200000);
   }
 
-  printf("main: Server %s found client! Connecting..\n", "server");
+  printf("main: Server found client! Connecting..\n");
   hrd_connect_qp(cb, 0, clt_qp);
   hrd_publish_ready("server");
   printf("main: Server ready\n");
@@ -45,13 +44,16 @@ void run_server() {
   // Start real work
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
   while (true) {
-    size_t _expected = counter;
-    barrier();
-    size_t actual = ptr[0];
+    size_t minimum_allowed = shared_counter;
 
-    if (actual < _expected) {
-      printf("violation: actual = %zu, expected = %zu\n", actual, _expected);
-      usleep(1);
+    asm volatile("" ::: "memory");        // Compiler barrier
+    asm volatile("mfence" ::: "memory");  // Hardware barrier
+
+    // Check if the client's write is actually visible
+    size_t actual = ptr[0];
+    if (actual < minimum_allowed) {
+      printf("violation: actual = %zu, minimum_allowed = %zu\n", actual,
+             minimum_allowed);
     }
   }
 }
@@ -90,7 +92,7 @@ void run_client() {
 
   auto* ptr = reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
   while (true) {
-    ptr[0] = counter + 1;  // Bump the counter in the server's memory
+    ptr[0] = shared_counter + 1;
 
     sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
     sge.length = sizeof(size_t);
@@ -108,15 +110,16 @@ void run_client() {
     rt_assert(ret == 0);
     hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA write completes
 
-    barrier();
-    counter++;  // The RDMA write is complete, so the server must see new value
+    asm volatile("" ::: "memory");        // Compiler barrier
+    asm volatile("mfence" ::: "memory");  // Hardware barrier
+
+    shared_counter++;  // The RDMA write is complete, so server must see update
   }
 }
 
-int main(int argc, char* argv[]) {
-  counter = 0;
+int main() {
+  shared_counter = 0;
 
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
   auto thread_server = std::thread(run_server);
   auto thread_client = std::thread(run_client);
 

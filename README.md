@@ -19,17 +19,17 @@ benchmark is contained in one directory.
  * Modify `HRD_REGISTRY_IP` in `run-servers.sh` and `run-machines.sh` to the IP
    address of the server machine. The server runs a memcached instance that is
    used as a queue pair registry.
- * Allocate hugepages on the NIC's socket at the server machine. On our machines,
-   the NIC is attached to socket 0, so all benchmark scripts bind allocated
-   memory and threads to socket 0. On Ubuntu systems, create 8192 hugepages on
-   socket 0 using:
+ * Allocate hugepages on all machines, and set unlimited SHM limits:
 ```	
-	sudo echo 8192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+  sudo echo 8192 > /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages
+  sudo bash -c "echo kernel.shmmax = 9223372036854775807 >> /etc/sysctl.conf"
+  sudo bash -c "echo kernel.shmall = 1152921504606846720 >> /etc/sysctl.conf"
+  sudo sysctl -p /etc/sysctl.conf
 ```
    
 ## Benchmark description
 The benchmarks used in the paper are described below. This repository contains
-a few other benchmarks as well.
+other benchmarks as well.
 
 | Benchmark | Description |
 | ------------- | ------------- |
@@ -46,6 +46,9 @@ a few other benchmarks as well.
 | `ud-receiver` | Microbenchmark to measure throughput of inbound SENDs. |
 | | |
 | `rw-allsig` | WQE cache misses for outbound READs and WRITEs. |
+| | |
+| `write-incomplete` | This PoC shows that a completed WRITE can be invisible to the remote CPU. |
+| `write-reordering` | A test for left-to-right ordering of WRITEs. |
 
 
 ## Implementation details
