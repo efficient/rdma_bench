@@ -11,6 +11,13 @@ static constexpr size_t kAppBufSize = KB(4);
 static constexpr size_t kAppDataSize = 16;
 static_assert(kAppDataSize <= kHrdMaxInline, "");
 
+// Number of writes that to flush. The (WRITE+READ) combos for all writes are
+// issued in one postlist. The writes become visible to the remote CPU in
+// sequence.
+// Only the last READ in the postlist is signaled, so kAppNumWrites cannot be
+// too large. Else we'll run into signaling issues.
+static constexpr size_t kAppNumWrites = 2;
+
 void run_server() {
   struct hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
@@ -67,8 +74,10 @@ void run_client() {
 
   hrd_wait_till_ready("server");
 
-  struct ibv_send_wr write_wr, read_wr, *bad_send_wr;
-  struct ibv_sge write_sge, read_sge;
+  // The +1s are for simpler postlist chain pointer math
+  struct ibv_send_wr write_wr[kAppNumWrites + 1], read_wr[kAppNumWrites + 1];
+  struct ibv_send_wr* bad_send_wr;
+  struct ibv_sge write_sge[kAppNumWrites + 1], read_sge[kAppNumWrites + 1];
   struct ibv_wc wc;
 
   // Any garbage write
@@ -89,36 +98,41 @@ void run_client() {
     clock_gettime(CLOCK_REALTIME, &start);
 
     // WRITE
-    write_sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
-    write_sge.length = kAppDataSize;
-    write_sge.lkey = cb->conn_buf_mr->lkey;
+    for (size_t i = 0; i < kAppNumWrites; i++) {
+      const size_t offset = i * 64;
 
-    write_wr.opcode = IBV_WR_RDMA_WRITE;
-    write_wr.num_sge = 1;
-    write_wr.next = nullptr;
-    write_wr.sg_list = &write_sge;
-    write_wr.send_flags = 0 | IBV_SEND_INLINE;  // Unsignaled
-    write_wr.wr.rdma.remote_addr = srv_qp->buf_addr;
-    write_wr.wr.rdma.rkey = srv_qp->rkey;
+      write_sge[i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[i]) + offset;
+      write_sge[i].length = kAppDataSize;
+      write_sge[i].lkey = cb->conn_buf_mr->lkey;
 
-    // READ
-    read_sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
-    read_sge.length = kAppDataSize;
-    read_sge.lkey = cb->conn_buf_mr->lkey;
+      write_wr[i].opcode = IBV_WR_RDMA_WRITE;
+      write_wr[i].num_sge = 1;
+      write_wr[i].sg_list = &write_sge[i];
+      write_wr[i].send_flags = 0 | IBV_SEND_INLINE;  // Unsignaled
+      write_wr[i].wr.rdma.remote_addr = srv_qp->buf_addr + offset;
+      write_wr[i].wr.rdma.rkey = srv_qp->rkey;
 
-    read_wr.opcode = IBV_WR_RDMA_READ;
-    read_wr.num_sge = 1;
-    read_wr.next = nullptr;
-    read_wr.sg_list = &read_sge;
-    read_wr.send_flags = IBV_SEND_SIGNALED;
-    read_wr.wr.rdma.remote_addr = srv_qp->buf_addr;
-    read_wr.wr.rdma.rkey = srv_qp->rkey;
+      // READ
+      read_sge[i].addr = reinterpret_cast<uint64_t>(cb->conn_buf) + offset;
+      read_sge[i].length = kAppDataSize;
+      read_sge[i].lkey = cb->conn_buf_mr->lkey;
 
-    // Make a chain
-    write_wr.next = &read_wr;
-    read_wr.next = nullptr;
+      read_wr[i].opcode = IBV_WR_RDMA_READ;
+      read_wr[i].num_sge = 1;
+      read_wr[i].sg_list = &read_sge[i];
+      read_wr[i].send_flags = 0;  // Unsignaled. The last read is signaled.
+      read_wr[i].wr.rdma.remote_addr = srv_qp->buf_addr + offset;
+      read_wr[i].wr.rdma.rkey = srv_qp->rkey;
 
-    int ret = ibv_post_send(cb->conn_qp[0], &write_wr, &bad_send_wr);
+      // Make a chain
+      write_wr[i].next = &read_wr[i];
+      read_wr[i].next = &write_wr[i + 1];
+    }
+
+    read_wr[kAppNumWrites - 1].send_flags = IBV_SEND_SIGNALED;
+    read_wr[kAppNumWrites - 1].next = nullptr;
+
+    int ret = ibv_post_send(cb->conn_qp[0], &write_wr[0], &bad_send_wr);
     rt_assert(ret == 0);
     hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA read completes
     num_iters++;
