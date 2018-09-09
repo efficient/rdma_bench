@@ -3,15 +3,13 @@
 #include <string.h>
 #include <thread>
 #include <vector>
-#include "libhrd_cpp/hrd.h"
 #include "latency.h"
+#include "libhrd_cpp/hrd.h"
 
 DEFINE_uint64(is_client, 0, "Is this process a client?");
 static constexpr size_t kAppBufSize = KB(4);
-
-inline void clflush(volatile void *p) {
-  asm volatile ("clflush (%0)" :: "r"(p));
-}
+static constexpr size_t kAppDataSize = 16;
+static_assert(kAppDataSize <= kHrdMaxInline, "");
 
 void run_server() {
   struct hrd_conn_config_t conn_config;
@@ -69,30 +67,64 @@ void run_client() {
 
   hrd_wait_till_ready("server");
 
-  struct ibv_send_wr wr, *bad_send_wr;
-  struct ibv_sge sge;
+  struct ibv_send_wr write_wr, read_wr, *bad_send_wr;
+  struct ibv_sge write_sge, read_sge;
   struct ibv_wc wc;
 
   // Any garbage write
   auto* ptr = reinterpret_cast<volatile uint8_t*>(&cb->conn_buf[0]);
   for (size_t i = 0; i < kAppBufSize; i++) ptr[i] = 31;
 
+  size_t num_iters = 0;
+
   while (true) {
-    sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
-    sge.length = kAppBufSize;
-    sge.lkey = cb->conn_buf_mr->lkey;
+    if (num_iters == 100000) {
+      printf("avg %.1f us, 50 %.1f us, 99 %.1f us\n", latency.avg() / 10.0,
+             latency.perc(.50) / 10.0, latency.perc(.99) / 10.0);
+      latency.reset();
+      num_iters = 0;
+    }
 
-    wr.opcode = IBV_WR_RDMA_WRITE;
-    wr.num_sge = 1;
-    wr.next = nullptr;
-    wr.sg_list = &sge;
-    wr.send_flags = IBV_SEND_SIGNALED;
-    wr.wr.rdma.remote_addr = srv_qp->buf_addr;
-    wr.wr.rdma.rkey = srv_qp->rkey;
+    struct timespec start;
+    clock_gettime(CLOCK_REALTIME, &start);
 
-    int ret = ibv_post_send(cb->conn_qp[0], &wr, &bad_send_wr);
+    // WRITE
+    write_sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
+    write_sge.length = kAppDataSize;
+    write_sge.lkey = cb->conn_buf_mr->lkey;
+
+    write_wr.opcode = IBV_WR_RDMA_WRITE;
+    write_wr.num_sge = 1;
+    write_wr.next = nullptr;
+    write_wr.sg_list = &write_sge;
+    write_wr.send_flags = 0 | IBV_SEND_INLINE;  // Unsignaled
+    write_wr.wr.rdma.remote_addr = srv_qp->buf_addr;
+    write_wr.wr.rdma.rkey = srv_qp->rkey;
+
+    // READ
+    read_sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
+    read_sge.length = kAppDataSize;
+    read_sge.lkey = cb->conn_buf_mr->lkey;
+
+    read_wr.opcode = IBV_WR_RDMA_READ;
+    read_wr.num_sge = 1;
+    read_wr.next = nullptr;
+    read_wr.sg_list = &read_sge;
+    read_wr.send_flags = IBV_SEND_SIGNALED;
+    read_wr.wr.rdma.remote_addr = srv_qp->buf_addr;
+    read_wr.wr.rdma.rkey = srv_qp->rkey;
+
+    // Make a chain
+    write_wr.next = &read_wr;
+    read_wr.next = nullptr;
+
+    int ret = ibv_post_send(cb->conn_qp[0], &write_wr, &bad_send_wr);
     rt_assert(ret == 0);
-    hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA write completes
+    hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA read completes
+    num_iters++;
+
+    double us = ns_since(start) / 1000.0;
+    latency.update(us * 10);
   }
 }
 

@@ -1,1 +1,1 @@
-( cd ../; make write-reordering )
+( cd ../; make write-flush )

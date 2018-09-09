@@ -85,7 +85,8 @@ set(BENCHMARKS
   atomics-sequencer
   sender-scalability
   write-reordering
-  write-incomplete)
+  write-incomplete
+  write-flush)
 
 foreach(bench IN LISTS BENCHMARKS)
   add_executable(${bench} ${bench}/main.cc ${HRD_SOURCES})
