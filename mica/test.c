@@ -1,5 +1,4 @@
 #include <getopt.h>
-#include <papi.h>
 #include "hrd.h"
 #include "mica.h"
 

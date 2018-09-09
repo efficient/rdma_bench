@@ -1,5 +1,4 @@
-#ifndef HRD_H
-#define HRD_H
+#pragma once
 
 #include <assert.h>
 #include <errno.h>
@@ -70,7 +69,7 @@ static constexpr inline T round_up(T x) {
   return ((x) + T(power_of_two_number - 1)) & (~T(power_of_two_number - 1));
 }
 
-///< Registry info about a QP
+/// Registry info about a QP
 struct hrd_qp_attr_t {
   char name[kHrdQPNameSize];
   uint16_t lid;
@@ -122,12 +121,12 @@ struct hrd_ctrl_blk_t {
 
   /// InfiniBand info resolved from \p phy_port, must be filled by constructor.
   struct {
-    int device_id;               ///< Device index in list of verbs devices
-    struct ibv_context* ib_ctx;  ///< The verbs device context
-    uint8_t dev_port_id;         ///< 1-based port ID in device. 0 is invalid.
-    uint16_t port_lid;           ///< LID of phy_port. 0 is invalid.
+    int device_id;               // Device index in list of verbs devices
+    struct ibv_context* ib_ctx;  // The verbs device context
+    uint8_t dev_port_id;         // 1-based port ID in device. 0 is invalid.
+    uint16_t port_lid;           // LID of phy_port. 0 is invalid.
 
-    union ibv_gid gid;  ///< GID, used only for RoCE
+    union ibv_gid gid;  // GID, used only for RoCE
   } resolve;
 
   struct ibv_pd* pd;  // A protection domain for this control block
@@ -251,5 +250,3 @@ void hrd_get_formatted_time(char* timebuf);
 void hrd_nano_sleep(size_t ns);
 char* hrd_getenv(const char* name);
 void hrd_bind_to_core(std::thread& thread, size_t n);
-
-#endif  // HRD_H

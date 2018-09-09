@@ -33,11 +33,13 @@
 import os
 import ycm_core
 
+from os.path import expanduser
+home_dir = expanduser("~")
+
 flags = [
     '-x',
     'c++',
-    '-I', '/home/akalia/rdma_bench/',
-    '-I', '/users/akalia/rdma_bench/',
+    '-I' + str(home_dir) + '/rdma_bench',
     '-Wall',
     '-Werror',
     '-Wextra',
@@ -45,7 +47,7 @@ flags = [
     '-Wno-unused-function',
     '-Wold-style-cast',
     '-Wsign-conversion',
-    '-std=c++14',
+    '-std=c++11',
 ]
 
 

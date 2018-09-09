@@ -1,10 +1,9 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 2.8)
 project(eRPC)
 
-set(CMAKE_CXX_COMPILER g++-7)
-set(CMAKE_C_LINK_EXECUTABLE g++-7)
-
-add_definitions(-std=c++14)
+set(CMAKE_CXX_COMPILER g++)
+set(CMAKE_C_LINK_EXECUTABLE g++)
+add_definitions(-std=c++11)
 
 add_definitions(-Wall -Wextra -Werror -pedantic)
 add_definitions(-Wsign-conversion)
@@ -14,7 +13,7 @@ add_definitions(-Wno-unused-function)
 add_definitions(-march=native)
 add_definitions(-g)
 
-set(LIBRARIES ${LIBRARIES} rt numa ibverbs pthread gflags papi memcached)
+set(LIBRARIES ${LIBRARIES} rt numa ibverbs pthread gflags memcached)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
