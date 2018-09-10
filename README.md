@@ -6,8 +6,7 @@ A framework to understand RDMA performance. This is the source code for our
  * InfiniBand HCAs. Some C++ benchmarks work with RoCE HCAs.
  * Linux-based OS with RDMA drivers (Mellanox OFED or upstream OFED). Ubuntu,
    RHEL, and CentOS have been tested.
- * Software packages: cmake, memcached
- * Libraries: gflags, libmemcached-dev, libmemcached-tools, libnuma-dev (or numactl-devel)
+ * Required packages: cmake, memcached, gflags, libmemcached-dev, libnuma-dev
  * Root access is required only for hugepages.
 
 ## Required settings

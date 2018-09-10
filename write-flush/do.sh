@@ -1,0 +1,1 @@
+( cd ../; make write-reordering )
