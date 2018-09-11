@@ -44,7 +44,15 @@ void run_server() {
   hrd_publish_ready("server");
   printf("main: Server ready. Going to sleep.\n");
 
-  while (true) sleep(1);
+  while (true) {
+    sleep(1);  // Uncomment this to monitor actively
+    size_t val_2 = *reinterpret_cast<volatile size_t*>(&cb->conn_buf[64]);
+    asm volatile("" ::: "memory");        // Compiler barrier
+    asm volatile("mfence" ::: "memory");  // Hardware barrier
+    size_t val_1 = *reinterpret_cast<volatile size_t*>(&cb->conn_buf[0]);
+
+    if (val_2 > val_1) printf("violation %zu %zu\n", val_1, val_2);
+  }
 }
 
 void run_client() {
@@ -87,11 +95,10 @@ void run_client() {
   size_t num_iters = 0;
 
   while (true) {
-    if (num_iters == 100000) {
+    if (num_iters % KB(128) == 0 && num_iters > 0) {
       printf("avg %.1f us, 50 %.1f us, 99 %.1f us\n", latency.avg() / 10.0,
              latency.perc(.50) / 10.0, latency.perc(.99) / 10.0);
       latency.reset();
-      num_iters = 0;
     }
 
     struct timespec start;
@@ -102,6 +109,7 @@ void run_client() {
       const size_t offset = i * 64;
 
       write_sge[i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[i]) + offset;
+      *reinterpret_cast<size_t*>(write_sge[i].addr) = num_iters;
       write_sge[i].length = kAppDataSize;
       write_sge[i].lkey = cb->conn_buf_mr->lkey;
 
