@@ -1,1 +1,1 @@
-sudo killall test
+sudo pkill test

@@ -21,7 +21,7 @@ for i in `seq 0 28`; do
 done
 
 blue "Reset server QP registry"
-sudo killall memcached
+sudo pkill memcached
 memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &
 sleep 1
 

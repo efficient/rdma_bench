@@ -3,8 +3,8 @@
 # If there are no arguments, the script is being called from command line
 if [ "$#" -eq 0 ]; then
 	# Running from the command line
-	sudo killall main
-	sudo killall memcached
+	sudo pkill main
+	sudo pkill memcached
 	exit
 fi
 
@@ -29,6 +29,6 @@ fi
 
 # Kill quietly
 if [[ $1 == "quiet" ]]; then
-	sudo killall main 1>/dev/null 2>/dev/null
-	sudo killall memcached 1>/dev/null 2>/dev/null
+	sudo pkill main 1>/dev/null 2>/dev/null
+	sudo pkill memcached 1>/dev/null 2>/dev/null
 fi

@@ -10,7 +10,7 @@ chmod +x $exe
 num_server_threads=1
 
 blue "Reset server QP registry"
-sudo killall memcached
+sudo pkill memcached
 
 # Spawn memcached, but wait for it to start
 memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &

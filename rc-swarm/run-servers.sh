@@ -24,7 +24,7 @@ numa_node=$2
 # The 0th process starts up the QP registry
 if [ "$process_id" -eq 0 ]; then
 	blue "Process 0: Resetting QP registry"
-	sudo killall memcached 1>/dev/null 2>/dev/null
+	sudo pkill memcached 1>/dev/null 2>/dev/null
 
   # Spawn memcached, but wait for it to start
 	memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &

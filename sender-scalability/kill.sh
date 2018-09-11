@@ -1,2 +1,2 @@
-sudo killall sender-scalability
-sudo killall memcached
+sudo pkill sender-scalability
+sudo pkill memcached

@@ -1,2 +1,2 @@
-sudo killall main
-sudo killall memcached
+sudo pkill main
+sudo pkill memcached

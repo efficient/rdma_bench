@@ -13,7 +13,7 @@ if [ "$#" -gt 1 ]; then
 fi
 
 blue "Reset server QP registry"
-sudo killall memcached
+sudo pkill memcached
 memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &
 sleep 1
 

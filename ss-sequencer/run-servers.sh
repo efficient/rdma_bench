@@ -8,7 +8,7 @@ export MLX5_SINGLE_THREADED=1
 : ${HRD_REGISTRY_IP:?"Need to set HRD_REGISTRY_IP non-empty"}
 
 blue "Reset server QP registry"
-sudo killall memcached
+sudo pkill memcached
 memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &
 sleep 1
 

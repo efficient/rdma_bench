@@ -25,7 +25,7 @@ done
 # The 0th machine hosts the QP registry
 if [ "$1" -eq 0 ]; then
 	blue "Machine $1: Resetting QP registry"
-	sudo killall memcached 1>/dev/null 2>/dev/null
+	sudo pkill memcached 1>/dev/null 2>/dev/null
 	memcached -l 0.0.0.0 1>/dev/null 2>/dev/null &
 	sleep 1
 fi
@@ -45,7 +45,7 @@ sleep 120
 
 blue "Machine $1: Done! Killing main until it dies"
 while true; do
-	sudo killall main 1>/dev/null 2>/dev/null
+	sudo pkill main 1>/dev/null 2>/dev/null
 	main_ps_lines=`ps -afx | grep main | wc -l`
 	if [ $main_ps_lines = "1" ]; then
 		blue "Machine $1: main is dead :)"
