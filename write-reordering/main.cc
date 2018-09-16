@@ -6,11 +6,7 @@
 #include "libhrd_cpp/hrd.h"
 
 DEFINE_uint64(is_client, 0, "Is this process a client?");
-static constexpr size_t kAppBufSize = 1000;
-
-inline void clflush(volatile void *p) {
-  asm volatile ("clflush (%0)" :: "r"(p));
-}
+static constexpr size_t kAppBufSize = MB(1);
 
 void run_server() {
   struct hrd_conn_config_t conn_config;
@@ -41,13 +37,12 @@ void run_server() {
   uint64_t seed = 0xdeadbeef;
   auto* ptr = reinterpret_cast<volatile size_t*>(cb->conn_buf);
 
+  size_t iters = 0;
   while (true) {
     size_t loc_1 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
     size_t loc_2 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
     if (loc_1 >= loc_2) continue;
     // Here, loc_1 < loc 2
-
-    clflush(&ptr[loc_1]);
 
     size_t val_2 = ptr[loc_2];
     asm volatile("" ::: "memory");  // Compiler barrier
@@ -62,6 +57,9 @@ void run_server() {
     } else if (val_2 < val_1) {
       // printf("ok\n");
     }
+
+    iters++;
+    if (iters % MB(1) == 0) printf("no violation in %zu iterations\n", iters);
   }
 }
 

@@ -14,9 +14,9 @@ std::atomic<size_t> shared_counter;
 static size_t kClientRDMAPort = 0;
 static size_t kServerRDMAPort = 1;
 
-static size_t kBufSize = MB(32);   // Size of registered RDMA buffer
-static size_t kWriteSize = KB(1);  // Size of RDMA write
-static bool kDoRead = true;        // Do RDMA read after write
+static size_t kBufSize = MB(32);          // Size of registered RDMA buffer
+static size_t kWriteSize = kBufSize / 4;  // Size of RDMA write
+static bool kDoRead = true;               // Do RDMA read after write
 
 void run_server() {
   // Establish a QP with the client
