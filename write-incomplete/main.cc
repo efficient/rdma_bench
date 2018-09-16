@@ -119,7 +119,8 @@ void run_client() {
     wr[0].wr.rdma.remote_addr = srv_qp->buf_addr;
     wr[0].wr.rdma.rkey = srv_qp->rkey;
 
-    // RDMA read. Read from the last byte in the remote buffer
+    // RDMA read. Read from the last byte in the remote buffer. This likely does
+    // not overlap with the RDMA write buffer that we wrote to.
     if (kDoRead) {
       const size_t offset = kBufSize - sizeof(size_t);
       sge[1].addr = reinterpret_cast<uint64_t>(cb->conn_buf) + offset;
