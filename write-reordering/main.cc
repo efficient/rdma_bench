@@ -1,3 +1,16 @@
+/**
+ * @file main.cc
+ *
+ * @brief Tests left-to-right ordering of RDMA writes. Passes on ConnectX-3 and
+ * ConnectX-5 InfiniBand
+ *
+ * The client writes fills a remote buffer with a counter value, with multiple
+ * RDMA write transactions. The server constantly checks that a buffer location
+ * to the right of another buffer location always has a smaller counter value.
+ *
+ * @author Anuj Kalia
+ */
+
 #include <gflags/gflags.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,14 +19,15 @@
 #include "libhrd_cpp/hrd.h"
 
 DEFINE_uint64(is_client, 0, "Is this process a client?");
-static constexpr size_t kAppBufSize = MB(1);
+static constexpr size_t kAppBufSize = KB(128);
+static constexpr size_t kAppNumBufs = 16;
 
 void run_server() {
   struct hrd_conn_config_t conn_config;
   conn_config.num_qps = 1;
   conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
-  conn_config.buf_size = kAppBufSize;
+  conn_config.buf_size = kAppBufSize * kAppNumBufs;
   conn_config.buf_shm_key = 3185;
 
   auto* cb = hrd_ctrl_blk_init(0 /* id */, 0 /* port */, 0 /* numa */,
@@ -39,8 +53,11 @@ void run_server() {
 
   size_t iters = 0;
   while (true) {
-    size_t loc_1 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
-    size_t loc_2 = hrd_fastrand(&seed) % (kAppBufSize / sizeof(size_t));
+    size_t loc_1 =
+        hrd_fastrand(&seed) % ((kAppBufSize * kAppNumBufs) / sizeof(size_t));
+    size_t loc_2 =
+        hrd_fastrand(&seed) % ((kAppBufSize * kAppNumBufs) / sizeof(size_t));
+
     if (loc_1 >= loc_2) continue;
     // Here, loc_1 < loc 2
 
@@ -59,7 +76,10 @@ void run_server() {
     }
 
     iters++;
-    if (iters % MB(1) == 0) printf("no violation in %zu iterations\n", iters);
+    if (iters % MB(1) == 0) {
+      printf("No violation in %zu iterations. Counter sample = %zu.\n", iters,
+             val_2);
+    }
   }
 }
 
@@ -68,7 +88,7 @@ void run_client() {
   conn_config.num_qps = 1;
   conn_config.use_uc = false;
   conn_config.prealloc_buf = nullptr;
-  conn_config.buf_size = kAppBufSize;
+  conn_config.buf_size = kAppBufSize * kAppNumBufs;
   conn_config.buf_shm_key = 3185;
 
   auto* cb = hrd_ctrl_blk_init(0 /* id */, 0 /* port */, 0 /* numa */,
@@ -89,8 +109,8 @@ void run_client() {
 
   hrd_wait_till_ready("server");
 
-  struct ibv_send_wr wr, *bad_send_wr;
-  struct ibv_sge sge;
+  struct ibv_send_wr wr[kAppNumBufs], *bad_send_wr;
+  struct ibv_sge sge[kAppNumBufs];
   struct ibv_wc wc;
   size_t ctr = 0;
 
@@ -99,23 +119,32 @@ void run_client() {
     ctr++;
 
     // RDMA write an array with all 8-byte words = ctr
-    for (size_t i = 0; i < kAppBufSize / sizeof(size_t); i++) ptr[i] = ctr;
+    for (size_t i = 0; i < (kAppBufSize * kAppNumBufs) / sizeof(size_t); i++) {
+      ptr[i] = ctr;
+    }
 
-    sge.addr = reinterpret_cast<uint64_t>(cb->conn_buf);
-    sge.length = kAppBufSize;
-    sge.lkey = cb->conn_buf_mr->lkey;
+    for (size_t i = 0; i < kAppNumBufs; i++) {
+      sge[i].addr = reinterpret_cast<uint64_t>(
+          &cb->conn_buf[(kAppNumBufs - 1 - i) * kAppBufSize]);
+      sge[i].length = kAppBufSize;
+      sge[i].lkey = cb->conn_buf_mr->lkey;
 
-    wr.opcode = IBV_WR_RDMA_WRITE;
-    wr.num_sge = 1;
-    wr.next = nullptr;
-    wr.sg_list = &sge;
-    wr.send_flags = IBV_SEND_SIGNALED;
-    wr.wr.rdma.remote_addr = srv_qp->buf_addr;
-    wr.wr.rdma.rkey = srv_qp->rkey;
+      wr[i].opcode = IBV_WR_RDMA_WRITE;
+      wr[i].num_sge = 1;
+      wr[i].next = nullptr;
+      wr[i].sg_list = &sge[i];
+      wr[i].send_flags = IBV_SEND_SIGNALED;
+      wr[i].wr.rdma.remote_addr = srv_qp->buf_addr + (i * kAppBufSize);
+      wr[i].wr.rdma.rkey = srv_qp->rkey;
 
-    int ret = ibv_post_send(cb->conn_qp[0], &wr, &bad_send_wr);
-    rt_assert(ret == 0);
-    hrd_poll_cq(cb->conn_cq[0], 1, &wc);  // Block till the RDMA write completes
+      int ret = ibv_post_send(cb->conn_qp[0], &wr[i], &bad_send_wr);
+      rt_assert(ret == 0);
+    }
+
+    for (size_t i = 0; i < kAppNumBufs; i++) {
+      // Wait for all kAppBufSize writes to complete
+      hrd_poll_cq(cb->conn_cq[0], 1, &wc);
+    }
   }
 }
 
