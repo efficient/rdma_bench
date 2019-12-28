@@ -49,7 +49,6 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
 
   // Connected QPs
   if (conn_config != nullptr) {
-    assert(conn_config->buf_size <= MB(1024));
     if (conn_config->prealloc_buf != nullptr) {
       assert(conn_config->buf_shm_key == -1);
     }
@@ -63,7 +62,6 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
     cb->dgram_buf_size = dgram_config->buf_size;
     cb->dgram_buf_shm_key = dgram_config->buf_shm_key;
 
-    assert(cb->dgram_buf_size <= MB(1024));
     if (dgram_config->prealloc_buf != nullptr) {
       assert(cb->dgram_buf_shm_key == -1);
     }
@@ -144,7 +142,10 @@ struct hrd_ctrl_blk_t* hrd_ctrl_blk_init(size_t local_hid, size_t port_index,
       memset(const_cast<uint8_t*>(cb->conn_buf), 0, reg_size);
       cb->conn_buf_mr = ibv_reg_mr(cb->pd, const_cast<uint8_t*>(cb->conn_buf),
                                    reg_size, ib_flags);
-      assert(cb->conn_buf_mr != nullptr);
+      if (cb->conn_buf_mr == nullptr) {
+        printf("Buffer reg failed with code %s\n", strerror(errno));
+        exit(-1);
+      }
     } else {
       cb->conn_buf = const_cast<volatile uint8_t*>(conn_config->prealloc_buf);
       cb->conn_buf_mr = ibv_reg_mr(cb->pd, const_cast<uint8_t*>(cb->conn_buf),
