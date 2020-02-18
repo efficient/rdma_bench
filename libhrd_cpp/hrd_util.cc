@@ -319,7 +319,7 @@ void hrd_get_formatted_time(char* timebuf) {
 
 memcached_st* hrd_create_memc() {
   memcached_server_st* servers = nullptr;
-  memcached_st* memc = memcached_create(nullptr);
+  memcached_st* memc = nullptr;
   memcached_return rc;
 
   memc = memcached_create(nullptr);
