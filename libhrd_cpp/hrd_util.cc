@@ -319,7 +319,7 @@ void hrd_get_formatted_time(char* timebuf) {
 
 memcached_st* hrd_create_memc() {
   memcached_server_st* servers = nullptr;
-  memcached_st* memc = memcached_create(nullptr);
+  memcached_st* memc = nullptr;
   memcached_return rc;
 
   memc = memcached_create(nullptr);
@@ -331,6 +331,7 @@ memcached_st* hrd_create_memc() {
   rc = memcached_server_push(memc, servers);
   rt_assert(rc == MEMCACHED_SUCCESS, "Couldn't add memcached server");
 
+  memcached_server_list_free(servers);
   return memc;
 }
 
@@ -429,10 +430,12 @@ void hrd_wait_till_ready(const char* qp_name) {
     tries++;
     if (ret > 0) {
       if (strcmp(value, exp_value) == 0) {
+        free(value);
         return;
       }
     }
 
+    free(value);
     usleep(200000);
 
     if (tries > 100) {
