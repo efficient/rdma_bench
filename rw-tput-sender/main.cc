@@ -4,21 +4,24 @@
 #include "libhrd_cpp/hrd.h"
 
 static constexpr size_t kAppNumQPs = 1;
-static constexpr size_t kAppBufSize = 8192;
+//static constexpr size_t kAppBufSize = 8192;
+static constexpr size_t kAppBufSize = 2147483648;
 static constexpr bool kAppRoundOffset = true;
 static constexpr size_t kAppMaxPostlist = 64;
 static constexpr size_t kAppMaxServers = 64;
 static constexpr size_t kAppUnsigBatch = 64;
+static constexpr bool kAppLocalRandonAccess = true;
+static constexpr bool kAppRemoteRandonAccess = true;
 static_assert(is_power_of_two(kAppUnsigBatch), "");
 
 DEFINE_uint64(machine_id, std::numeric_limits<size_t>::max(), "Machine ID");
-DEFINE_uint64(num_threads, 0, "Number of threads");
-DEFINE_uint64(is_client, 0, "Is this process a client?");
+DEFINE_uint64(num_threads, 1, "Number of threads");
+DEFINE_uint64(is_client, 1, "Is this process a client?");
 DEFINE_uint64(dual_port, 0, "Use two ports?");
 DEFINE_uint64(use_uc, 0, "Use unreliable connected transport?");
-DEFINE_uint64(do_read, 0, "Do RDMA reads?");
-DEFINE_uint64(size, 0, "RDMA size");
-DEFINE_uint64(postlist, 0, "Postlist size");
+DEFINE_uint64(do_read, 1, "Do RDMA reads?");
+DEFINE_uint64(size, 65536000, "RDMA size");
+DEFINE_uint64(postlist, 1, "Postlist size");
 
 std::array<double, kAppMaxServers> tput;
 
@@ -84,6 +87,7 @@ void run_server(thread_params_t* params) {
   }
 
   printf("main: Server %zu connected!\n", srv_gid);
+  printf("main: per rdma size is %zu \n", FLAGS_size);
 
   struct ibv_send_wr wr[kAppMaxPostlist], *bad_send_wr;
   struct ibv_sge sgl[kAppMaxPostlist];
@@ -98,6 +102,8 @@ void run_server(thread_params_t* params) {
 
   auto opcode = FLAGS_do_read == 0 ? IBV_WR_RDMA_WRITE : IBV_WR_RDMA_READ;
 
+  size_t local_sequencial_offset=0;
+  size_t remote_sequencial_offset=0;
   while (true) {
     if (rolling_iter >= MB(8)) {
       clock_gettime(CLOCK_REALTIME, &end);
@@ -134,18 +140,50 @@ void run_server(thread_params_t* params) {
 
       wr[w_i].send_flags |= (FLAGS_do_read == 0) ? IBV_SEND_INLINE : 0;
 
-      size_t offset = hrd_fastrand(&seed) % kAppBufSize;
-      if (kAppRoundOffset) offset = round_up<64>(offset);
-      while (unlikely(offset >= kAppBufSize - FLAGS_size)) {
-        offset = hrd_fastrand(&seed) % kAppBufSize;
-        if (kAppRoundOffset) offset = round_up<64>(offset);
-      }
+	  //local offset
+	  size_t offset;
+	  if(kAppLocalRandonAccess){
+		//Random access
+      	offset = hrd_fastrand(&seed) % kAppBufSize;
+      	if (kAppRoundOffset) offset = round_up<64>(offset);
+      	while (unlikely(offset >= kAppBufSize - FLAGS_size)) {
+      	  offset = hrd_fastrand(&seed) % kAppBufSize;
+      	  if (kAppRoundOffset) offset = round_up<64>(offset);
+      	}
+      }else {
+		//Sequencial access
+        if(local_sequencial_offset+FLAGS_size>kAppBufSize){
+			local_sequencial_offset = 0;
+		}else {
+			local_sequencial_offset += FLAGS_size;
+		}
+		offset=local_sequencial_offset;	
+	  }
+
+	  size_t remote_offset;
+	  if(kAppLocalRandonAccess){
+		//Random access
+      	remote_offset = hrd_fastrand(&seed) % kAppBufSize;
+      	if (kAppRoundOffset) remote_offset = round_up<64>(remote_offset);
+      	while (unlikely(remote_offset >= kAppBufSize - FLAGS_size)) {
+      	  remote_offset = hrd_fastrand(&seed) % kAppBufSize;
+      	  if (kAppRoundOffset) remote_offset = round_up<64>(remote_offset);
+      	}
+      }else {
+		//Sequencial access
+        if(remote_sequencial_offset+FLAGS_size>kAppBufSize){
+			remote_sequencial_offset = 0;
+		}else {
+			remote_sequencial_offset += FLAGS_size;
+		}
+		remote_offset=remote_sequencial_offset;	
+	  }
 
       sgl[w_i].addr = reinterpret_cast<uint64_t>(&cb->conn_buf[offset]);
       sgl[w_i].length = FLAGS_size;
       sgl[w_i].lkey = cb->conn_buf_mr->lkey;
 
-      wr[w_i].wr.rdma.remote_addr = clt_qp[qp_i]->buf_addr + offset;
+      wr[w_i].wr.rdma.remote_addr = clt_qp[qp_i]->buf_addr + remote_offset;
       wr[w_i].wr.rdma.rkey = clt_qp[qp_i]->rkey;
 
       nb_tx[qp_i]++;
@@ -188,6 +226,7 @@ void run_client(thread_params_t* params) {
 
   printf("main: Client %zu published. Waiting for server %zu.\n", clt_gid,
          srv_gid);
+  printf("main: per rdma size is %zu \n", FLAGS_size);
 
   hrd_qp_attr_t* srv_qp[kAppNumQPs] = {nullptr};
   for (size_t i = 0; i < kAppNumQPs; i++) {

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 source $(dirname $0)/../scripts/utils.sh
 source $(dirname $0)/../scripts/mlx_env.sh
-export HRD_REGISTRY_IP="10.10.1.1"
+source /root/.bashrc
+echo $LD_LIBRARY_PATH
+export HRD_REGISTRY_IP="10.0.0.44"
 
 drop_shm
 

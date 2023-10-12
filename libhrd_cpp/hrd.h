@@ -21,7 +21,7 @@
 #include <string>
 #include <thread>
 
-static constexpr size_t kRoCE = false;  ///< Use RoCE
+static constexpr size_t kRoCE = true;  ///< Use RoCE
 static constexpr size_t kHrdMaxInline = 16;
 static constexpr size_t kHrdSQDepth = 128;   ///< Depth of all SEND queues
 static constexpr size_t kHrdRQDepth = 2048;  ///< Depth of all RECV queues

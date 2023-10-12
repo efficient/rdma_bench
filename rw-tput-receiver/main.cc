@@ -9,14 +9,14 @@ static constexpr size_t kAppBufSize = (8 * 1024 * 1024);
 static constexpr size_t kAppMaxPostlist = 64;
 static constexpr size_t kAppUnsigBatch = 64;
 
-DEFINE_uint64(num_threads, 0, "Number of threads");
-DEFINE_uint64(is_client, 0, "Is this process a client?");
+DEFINE_uint64(num_threads, 1, "Number of threads");
+DEFINE_uint64(is_client, 1, "Is this process a client?");
 DEFINE_uint64(dual_port, 0, "Use two ports?");
 DEFINE_uint64(use_uc, 0, "Use unreliable connected transport?");
-DEFINE_uint64(do_read, 0, "Do RDMA reads?");
+DEFINE_uint64(do_read, 1, "Do RDMA reads?");
 DEFINE_uint64(machine_id, 0, "ID of this machine");
-DEFINE_uint64(size, 0, "RDMA size");
-DEFINE_uint64(postlist, 0, "Postlist size");
+DEFINE_uint64(size, 1, "RDMA size");
+DEFINE_uint64(postlist, 1, "Postlist size");
 
 struct thread_params_t {
   size_t id;
